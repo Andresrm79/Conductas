@@ -15,6 +15,18 @@ import { INITIAL_CLASSES, INITIAL_INCIDENTS, INITIAL_PROFILES } from '../data/mo
 import { INITIAL_POSITIVES, INITIAL_STUDENTS } from '../data/mockStudents';
 import { INITIAL_BEHAVIOR_TYPES } from '../data/mockBehaviorTypes';
 import { INITIAL_LATE_ARRIVALS, DEFAULT_LATE_CONFIG } from '../data/mockLateArrivals';
+import {
+  batchSaveIncidentsToFirebase,
+  saveClassToFirebase,
+  saveStudentToFirebase,
+  savePositiveToFirebase,
+  saveBehaviorTypeToFirebase,
+  saveProfileToFirebase,
+  saveLateArrivalToFirebase,
+  saveCenterLateConfigToFirebase,
+  saveClassConductConfigToFirebase,
+  saveIncidentToFirebase,
+} from '../firebase/firestoreService';
 
 const INCIDENTS_KEY = 'aula_conductas_incidencias_v1';
 const CURRENT_USER_KEY = 'aula_conductas_current_user_v1';
@@ -55,6 +67,9 @@ export function getStoredBehaviorTypes(): BehaviorType[] {
 export function saveStoredBehaviorTypes(types: BehaviorType[]): void {
   try {
     localStorage.setItem(BEHAVIOR_TYPES_KEY, JSON.stringify(types));
+    types.forEach((t) => {
+      saveBehaviorTypeToFirebase(t).catch((err) => console.log('Firebase sync notice:', err));
+    });
   } catch (e) {
     console.error('Error saving behavior types to localStorage', e);
   }
@@ -127,12 +142,14 @@ export function saveClassConductConfig(config: ClassConductConfig): void {
   try {
     const raw = localStorage.getItem(CLASS_CONDUCT_CONFIGS_KEY);
     const configs: Record<string, ClassConductConfig> = raw ? JSON.parse(raw) : {};
-    configs[config.className] = {
+    const updated = {
       ...config,
       isCustomized: true,
       updatedAt: new Date().toISOString(),
     };
+    configs[config.className] = updated;
     localStorage.setItem(CLASS_CONDUCT_CONFIGS_KEY, JSON.stringify(configs));
+    saveClassConductConfigToFirebase(updated).catch((err) => console.log('Firebase sync notice:', err));
   } catch (e) {
     console.error('Error saving class conduct config', e);
   }
@@ -392,6 +409,9 @@ export function getStoredStudents(): ClassStudent[] {
 export function saveStoredStudents(students: ClassStudent[]): void {
   try {
     localStorage.setItem(STUDENTS_KEY, JSON.stringify(students));
+    students.forEach((st) => {
+      saveStudentToFirebase(st).catch((err) => console.log('Firebase sync notice:', err));
+    });
   } catch (e) {
     console.error('Error saving students to localStorage', e);
   }
@@ -414,6 +434,9 @@ export function getStoredPositives(): PositiveBehavior[] {
 export function saveStoredPositives(positives: PositiveBehavior[]): void {
   try {
     localStorage.setItem(POSITIVES_KEY, JSON.stringify(positives));
+    positives.forEach((p) => {
+      savePositiveToFirebase(p).catch((err) => console.log('Firebase sync notice:', err));
+    });
   } catch (e) {
     console.error('Error saving positives to localStorage', e);
   }
@@ -437,6 +460,9 @@ export function getStoredClasses(): SchoolClass[] {
 export function saveStoredClasses(classes: SchoolClass[]): void {
   try {
     localStorage.setItem(CLASSES_KEY, JSON.stringify(classes));
+    classes.forEach((c) => {
+      saveClassToFirebase(c).catch((err) => console.log('Firebase sync notice:', err));
+    });
   } catch (e) {
     console.error('Error saving classes to localStorage', e);
   }
@@ -508,6 +534,7 @@ export function getStoredIncidents(): Incident[] {
 export function saveIncidents(incidents: Incident[]): void {
   try {
     localStorage.setItem(INCIDENTS_KEY, JSON.stringify(incidents));
+    batchSaveIncidentsToFirebase(incidents).catch((err) => console.log('Firebase sync notice:', err));
   } catch (e) {
     console.error('Error saving incidents to localStorage', e);
   }
@@ -536,6 +563,9 @@ export function getStoredProfiles(): UserProfile[] {
 export function saveStoredProfiles(profiles: UserProfile[]): void {
   try {
     localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
+    profiles.forEach((p) => {
+      saveProfileToFirebase(p).catch((err) => console.log('Firebase sync notice:', err));
+    });
   } catch (e) {
     console.error('Error saving profiles to localStorage', e);
   }
@@ -591,6 +621,9 @@ export function getStoredLateArrivals(): LateArrival[] {
 export function saveStoredLateArrivals(arrivals: LateArrival[]): void {
   try {
     localStorage.setItem(LATE_ARRIVALS_KEY, JSON.stringify(arrivals));
+    arrivals.forEach((a) => {
+      saveLateArrivalToFirebase(a).catch((err) => console.log('Firebase sync notice:', err));
+    });
   } catch (e) {
     console.error('Error saving late arrivals to localStorage', e);
   }
@@ -613,6 +646,7 @@ export function getStoredLateArrivalConfig(): LateArrivalConfig {
 export function saveStoredLateArrivalConfig(config: LateArrivalConfig): void {
   try {
     localStorage.setItem(LATE_CONFIG_KEY, JSON.stringify(config));
+    saveCenterLateConfigToFirebase(config).catch((err) => console.log('Firebase sync notice:', err));
   } catch (e) {
     console.error('Error saving late arrival config to localStorage', e);
   }

@@ -1,0 +1,196 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Connectivity test endpoint
+    match /test/connection {
+      allow read: if true;
+    }
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isVerified() && (
+        request.auth.token.email == 'andres.ramos.martin@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // Entity Validations
+    function isValidIncident(data) {
+      return data.keys().hasAll(['id', 'studentName', 'studentGroup', 'date', 'description', 'status', 'severity', 'teacherName'])
+        && data.id is string && data.id.size() <= 128
+        && data.studentName is string && data.studentName.size() <= 150
+        && data.studentGroup is string && data.studentGroup.size() <= 80
+        && data.date is string && data.date.size() <= 30
+        && data.severity in ['Leve', 'Grave', 'Muy Grave']
+        && data.status in ['Abierta', 'En seguimiento', 'Medida cumplida', 'Cerrada']
+        && data.description is string && data.description.size() <= 2000
+        && data.teacherName is string && data.teacherName.size() <= 150;
+    }
+
+    function isValidClass(data) {
+      return data.keys().hasAll(['id', 'name', 'stage', 'room', 'tutorName', 'password', 'color'])
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 80
+        && data.stage in ['ESO', 'Bachillerato', 'FP', 'Primaria']
+        && data.room is string && data.room.size() <= 80
+        && data.tutorName is string && data.tutorName.size() <= 150
+        && data.password is string && data.password.size() <= 100
+        && data.color is string && data.color.size() <= 50;
+    }
+
+    function isValidStudent(data) {
+      return data.keys().hasAll(['id', 'name', 'className', 'positivePoints', 'negativePoints'])
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 150
+        && data.className is string && data.className.size() <= 80
+        && data.positivePoints is number
+        && data.negativePoints is number;
+    }
+
+    function isValidPositive(data) {
+      return data.keys().hasAll(['id', 'studentName', 'studentGroup', 'date', 'category', 'teacherName', 'points'])
+        && data.id is string && data.id.size() <= 128
+        && data.studentName is string && data.studentName.size() <= 150
+        && data.studentGroup is string && data.studentGroup.size() <= 80
+        && data.date is string && data.date.size() <= 30
+        && data.category is string && data.category.size() <= 150
+        && data.teacherName is string && data.teacherName.size() <= 150
+        && data.points is number && data.points >= 0;
+    }
+
+    function isValidBehaviorType(data) {
+      return data.keys().hasAll(['id', 'name', 'type', 'points'])
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 150
+        && data.type in ['positiva', 'disruptiva']
+        && data.points is number;
+    }
+
+    function isValidProfile(data) {
+      return data.keys().hasAll(['id', 'name', 'role', 'avatarColor'])
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 150
+        && data.role in ['Profesor', 'Tutor', 'Directivo', 'Orientador']
+        && data.avatarColor is string && data.avatarColor.size() <= 50;
+    }
+
+    function isValidLateArrival(data) {
+      return data.keys().hasAll(['id', 'studentName', 'studentGroup', 'date', 'arrivalTime', 'minutesLate', 'justified', 'recordedBy'])
+        && data.id is string && data.id.size() <= 128
+        && data.studentName is string && data.studentName.size() <= 150
+        && data.studentGroup is string && data.studentGroup.size() <= 80
+        && data.date is string && data.date.size() <= 30
+        && data.arrivalTime is string && data.arrivalTime.size() <= 20
+        && data.minutesLate is number && data.minutesLate >= 0
+        && data.justified is bool
+        && data.recordedBy is string && data.recordedBy.size() <= 150;
+    }
+
+    function isValidClassConductConfig(data) {
+      return data.keys().hasAll(['className', 'thresholds'])
+        && data.className is string && data.className.size() <= 80
+        && data.thresholds is map;
+    }
+
+    function isValidCenterConfig(data) {
+      return data.keys().hasAll(['id', 'warningThreshold', 'defaultExpectedTime'])
+        && data.id is string && data.id.size() <= 128
+        && data.warningThreshold is number
+        && data.defaultExpectedTime is string && data.defaultExpectedTime.size() <= 20;
+    }
+
+    // Incidents Collection
+    match /incidents/{incidentId} {
+      allow read: if true;
+      allow create, update: if isValidId(incidentId) && isValidIncident(incoming());
+      allow delete: if isValidId(incidentId);
+    }
+
+    // Classes Collection
+    match /classes/{classId} {
+      allow read: if true;
+      allow create, update: if isValidId(classId) && isValidClass(incoming());
+      allow delete: if isValidId(classId);
+    }
+
+    // Students Collection
+    match /students/{studentId} {
+      allow read: if true;
+      allow create, update: if isValidId(studentId) && isValidStudent(incoming());
+      allow delete: if isValidId(studentId);
+    }
+
+    // Positives Collection
+    match /positives/{positiveId} {
+      allow read: if true;
+      allow create, update: if isValidId(positiveId) && isValidPositive(incoming());
+      allow delete: if isValidId(positiveId);
+    }
+
+    // Behavior Types Catalog
+    match /behaviorTypes/{typeId} {
+      allow read: if true;
+      allow create, update: if isValidId(typeId) && isValidBehaviorType(incoming());
+      allow delete: if isValidId(typeId);
+    }
+
+    // Profiles Collection
+    match /profiles/{profileId} {
+      allow read: if true;
+      allow create, update: if isValidId(profileId) && isValidProfile(incoming());
+      allow delete: if isValidId(profileId);
+    }
+
+    // Late Arrivals Collection
+    match /lateArrivals/{arrivalId} {
+      allow read: if true;
+      allow create, update: if isValidId(arrivalId) && isValidLateArrival(incoming());
+      allow delete: if isValidId(arrivalId);
+    }
+
+    // Class Conduct Configs Collection
+    match /classConductConfigs/{configId} {
+      allow read: if true;
+      allow create, update: if isValidId(configId) && isValidClassConductConfig(incoming());
+      allow delete: if isValidId(configId);
+    }
+
+    // Center Configuration
+    match /config/{configId} {
+      allow read: if true;
+      allow create, update: if isValidId(configId) && isValidCenterConfig(incoming());
+      allow delete: if isValidId(configId);
+    }
+
+    // Admins Collection
+    match /admins/{adminId} {
+      allow read, write: if true;
+    }
+  }
+}

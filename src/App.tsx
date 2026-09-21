@@ -63,6 +63,34 @@ import { CreateClassModal } from './components/CreateClassModal';
 import { EditClassModal } from './components/EditClassModal';
 import { AppLoginScreen } from './components/AppLoginScreen';
 import { CheckCircle2, AlertTriangle, Plus, FileSpreadsheet, LayoutGrid, Clock, FileCheck, ShieldAlert } from 'lucide-react';
+import {
+  subscribeToIncidents,
+  subscribeToClasses,
+  subscribeToStudents,
+  subscribeToPositives,
+  subscribeToBehaviorTypes,
+  subscribeToProfiles,
+  subscribeToLateArrivals,
+  subscribeToCenterConfig,
+  seedInitialFirestoreDataIfEmpty,
+  saveIncidentToFirebase,
+  deleteIncidentFromFirebase,
+  saveClassToFirebase,
+  deleteClassFromFirebase,
+  saveStudentToFirebase,
+  deleteStudentFromFirebase,
+  savePositiveToFirebase,
+  saveBehaviorTypeToFirebase,
+  deleteBehaviorTypeFromFirebase,
+  saveProfileToFirebase,
+  saveLateArrivalToFirebase,
+  deleteLateArrivalFromFirebase,
+  saveCenterLateConfigToFirebase,
+  batchSaveIncidentsToFirebase,
+  resetFirebaseToInitialData,
+} from './firebase/firestoreService';
+import { testConnection } from './firebase/config';
+import { FirebaseSyncBanner } from './components/FirebaseSyncBanner';
 
 export default function App() {
   const [incidents, setIncidents] = useState<Incident[]>(() => getStoredIncidents());
@@ -73,6 +101,9 @@ export default function App() {
   const [profiles, setProfiles] = useState<UserProfile[]>(() => getStoredProfiles());
   const [currentUser, setCurrentUser] = useState<UserProfile>(() => getStoredUser());
   const [activeTab, setActiveTab] = useState<'incidencias' | 'directivo' | 'alumnos'>('incidencias');
+
+  // Firebase Cloud Synchronization State (conductas-2c546)
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
 
   // Authentication Gate State - strictly requires user password before revealing any profiles or classes
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
@@ -121,6 +152,127 @@ export default function App() {
     setTimeout(() => {
       setToastMessage((prev) => (prev === msg ? null : prev));
     }, 4000);
+  };
+
+  // Firebase Real-time Synchronization Lifecycles
+  useEffect(() => {
+    setIsSyncing(true);
+
+    // Verify Firestore connection and seed data in project conductas-2c546 if first time
+    testConnection().then((connected) => {
+      console.log('Firebase connection verified:', connected);
+    });
+
+    seedInitialFirestoreDataIfEmpty()
+      .catch((err) => console.log('Firebase seed check:', err))
+      .finally(() => setIsSyncing(false));
+
+    const unsubs: (() => void)[] = [];
+
+    // Real-time Firestore Subscriptions for all datasets from conductas-2c546
+    unsubs.push(
+      subscribeToIncidents((data) => {
+        if (data && data.length > 0) {
+          setIncidents(data);
+          try {
+            localStorage.setItem('aula_conductas_incidencias_v1', JSON.stringify(data));
+          } catch {}
+        }
+      })
+    );
+
+    unsubs.push(
+      subscribeToClasses((data) => {
+        if (data && data.length > 0) {
+          setClasses(data);
+          try {
+            localStorage.setItem('aula_conductas_classes_v1', JSON.stringify(data));
+          } catch {}
+        }
+      })
+    );
+
+    unsubs.push(
+      subscribeToStudents((data) => {
+        if (data && data.length > 0) {
+          setStudents(data);
+          try {
+            localStorage.setItem('aula_conductas_students_v1', JSON.stringify(data));
+          } catch {}
+        }
+      })
+    );
+
+    unsubs.push(
+      subscribeToPositives((data) => {
+        if (data && data.length > 0) {
+          setPositives(data);
+          try {
+            localStorage.setItem('aula_conductas_positives_v1', JSON.stringify(data));
+          } catch {}
+        }
+      })
+    );
+
+    unsubs.push(
+      subscribeToBehaviorTypes((data) => {
+        if (data && data.length > 0) {
+          setBehaviorTypes(data);
+          try {
+            localStorage.setItem('aula_conductas_behavior_types_v1', JSON.stringify(data));
+          } catch {}
+        }
+      })
+    );
+
+    unsubs.push(
+      subscribeToProfiles((data) => {
+        if (data && data.length > 0) {
+          setProfiles(data);
+          try {
+            localStorage.setItem('aula_conductas_profiles_v2', JSON.stringify(data));
+          } catch {}
+        }
+      })
+    );
+
+    unsubs.push(
+      subscribeToLateArrivals((data) => {
+        if (data && data.length > 0) {
+          setLateArrivals(data);
+          try {
+            localStorage.setItem('aula_conductas_late_arrivals_v1', JSON.stringify(data));
+          } catch {}
+        }
+      })
+    );
+
+    unsubs.push(
+      subscribeToCenterConfig((data) => {
+        if (data) {
+          setLateConfig(data);
+          try {
+            localStorage.setItem('aula_conductas_late_config_v1', JSON.stringify(data));
+          } catch {}
+        }
+      })
+    );
+
+    return () => {
+      unsubs.forEach((u) => u());
+    };
+  }, []);
+
+  const handleForceSync = async () => {
+    try {
+      setIsSyncing(true);
+      await testConnection();
+      showToast('Sincronización con Firebase (conductas-2c546) actualizada.');
+    } catch (err) {
+      console.error('Sync error:', err);
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   // User Profile Handlers for Dirección (Pestaña Perfiles de Acceso)
@@ -278,6 +430,7 @@ export default function App() {
       saveStoredActiveClass(null);
     }
 
+    deleteClassFromFirebase(classId).catch((err) => console.log('Firebase delete class notice:', err));
     showToast(`Clase "${className}" eliminada correctamente.`);
   };
 
@@ -357,6 +510,7 @@ export default function App() {
     const nextStudents = students.filter((s) => s.id !== studentId);
     setStudents(nextStudents);
     saveStoredStudents(nextStudents);
+    deleteStudentFromFirebase(studentId).catch((err) => console.log('Firebase delete student notice:', err));
     if (stToDelete) {
       showToast(`Alumno "${stToDelete.name}" eliminado del grupo.`);
     }
@@ -386,6 +540,7 @@ export default function App() {
     const next = behaviorTypes.filter((b) => b.id !== typeId);
     setBehaviorTypes(next);
     saveStoredBehaviorTypes(next);
+    deleteBehaviorTypeFromFirebase(typeId).catch((err) => console.log('Firebase delete behavior notice:', err));
     if (toDelete) {
       showToast(`Conducta "${toDelete.name}" eliminada del catálogo.`);
     }
@@ -534,6 +689,7 @@ export default function App() {
     const next = lateArrivals.filter((la) => la.id !== id);
     setLateArrivals(next);
     saveStoredLateArrivals(next);
+    deleteLateArrivalFromFirebase(id).catch((err) => console.log('Firebase delete late arrival notice:', err));
     showToast('Registro de retraso eliminado.');
   };
 
@@ -621,6 +777,7 @@ export default function App() {
     ) {
       const demo = resetToSampleData();
       setIncidents(demo);
+      resetFirebaseToInitialData().catch((err) => console.log('Firebase reset notice:', err));
       showToast('Datos de demostración restablecidos.');
     }
   };
@@ -783,6 +940,11 @@ export default function App() {
         )}
 
         {/* Dedicated Executive Management Header */}
+        <FirebaseSyncBanner
+          isSyncing={isSyncing}
+          onTriggerSync={handleForceSync}
+        />
+
         <DirectivoHeader
           currentUser={currentUser}
           profiles={profiles}
@@ -1018,6 +1180,11 @@ export default function App() {
           </div>
         )}
 
+        <FirebaseSyncBanner
+          isSyncing={isSyncing}
+          onTriggerSync={handleForceSync}
+        />
+
         <ClassSelectionScreen
           classes={classes}
           incidents={incidents}
@@ -1091,6 +1258,11 @@ export default function App() {
       )}
 
       {/* Main App Header */}
+      <FirebaseSyncBanner
+        isSyncing={isSyncing}
+        onTriggerSync={handleForceSync}
+      />
+
       <Header
         currentUser={currentUser}
         profiles={profiles}

@@ -1,0 +1,201 @@
+{
+  "entities": {
+    "Incident": {
+      "title": "Incident",
+      "description": "Registro de parte disciplinario o incidencia conductual en el aula",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "studentName": { "type": "string", "maxLength": 150 },
+        "studentGroup": { "type": "string", "maxLength": 80 },
+        "date": { "type": "string", "maxLength": 20 },
+        "timeSlot": { "type": "string", "maxLength": 80 },
+        "subject": { "type": "string", "maxLength": 100 },
+        "teacherName": { "type": "string", "maxLength": 150 },
+        "teacherRole": { "type": "string", "maxLength": 50 },
+        "category": { "type": "string", "maxLength": 150 },
+        "severity": { "type": "string", "enum": ["Leve", "Grave", "Muy Grave"] },
+        "description": { "type": "string", "maxLength": 2000 },
+        "location": { "type": "string", "maxLength": 100 },
+        "immediateMeasure": { "type": "string", "maxLength": 1000 },
+        "directivoNotes": { "type": "string", "maxLength": 2000 },
+        "status": { "type": "string", "enum": ["Abierta", "En seguimiento", "Medida cumplida", "Cerrada"] },
+        "familyNotified": { "type": "boolean" },
+        "points": { "type": "number" },
+        "behaviorTypeId": { "type": "string", "maxLength": 128 },
+        "tutorReadConfirmation": { "type": "object" },
+        "createdAt": { "type": "string", "maxLength": 50 },
+        "updatedAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "studentName", "studentGroup", "date", "description", "status", "severity", "teacherName"]
+    },
+    "SchoolClass": {
+      "title": "SchoolClass",
+      "description": "Grupo o aula del centro educativo",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 80 },
+        "stage": { "type": "string", "enum": ["ESO", "Bachillerato", "FP", "Primaria"] },
+        "cycle": { "type": "string", "maxLength": 80 },
+        "room": { "type": "string", "maxLength": 80 },
+        "tutorName": { "type": "string", "maxLength": 150 },
+        "password": { "type": "string", "maxLength": 100 },
+        "color": { "type": "string", "maxLength": 50 },
+        "description": { "type": "string", "maxLength": 500 },
+        "isHidden": { "type": "boolean" }
+      },
+      "required": ["id", "name", "stage", "room", "tutorName", "password", "color"]
+    },
+    "ClassStudent": {
+      "title": "ClassStudent",
+      "description": "Alumno perteneciente a una clase o grupo",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 150 },
+        "className": { "type": "string", "maxLength": 80 },
+        "avatarColor": { "type": "string", "maxLength": 50 },
+        "positivePoints": { "type": "number" },
+        "negativePoints": { "type": "number" },
+        "conductNotes": { "type": "string", "maxLength": 2000 }
+      },
+      "required": ["id", "name", "className", "positivePoints", "negativePoints"]
+    },
+    "PositiveBehavior": {
+      "title": "PositiveBehavior",
+      "description": "Reconocimiento o felicitación por conducta positiva",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "studentName": { "type": "string", "maxLength": 150 },
+        "studentGroup": { "type": "string", "maxLength": 80 },
+        "date": { "type": "string", "maxLength": 20 },
+        "category": { "type": "string", "maxLength": 150 },
+        "description": { "type": "string", "maxLength": 1000 },
+        "teacherName": { "type": "string", "maxLength": 150 },
+        "points": { "type": "number" },
+        "behaviorTypeId": { "type": "string", "maxLength": 128 }
+      },
+      "required": ["id", "studentName", "studentGroup", "date", "category", "teacherName", "points"]
+    },
+    "BehaviorType": {
+      "title": "BehaviorType",
+      "description": "Tipo de conducta configurable en el baremo del centro o de aula",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 150 },
+        "type": { "type": "string", "enum": ["positiva", "disruptiva"] },
+        "points": { "type": "number" },
+        "description": { "type": "string", "maxLength": 500 },
+        "isCustom": { "type": "boolean" },
+        "active": { "type": "boolean" },
+        "className": { "type": "string", "maxLength": 80 }
+      },
+      "required": ["id", "name", "type", "points"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Perfil docente o directivo del centro",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 150 },
+        "role": { "type": "string", "enum": ["Profesor", "Tutor", "Directivo", "Orientador"] },
+        "subject": { "type": "string", "maxLength": 100 },
+        "course": { "type": "string", "maxLength": 100 },
+        "avatarColor": { "type": "string", "maxLength": 50 },
+        "password": { "type": "string", "maxLength": 100 },
+        "allowedClasses": { "type": "array" }
+      },
+      "required": ["id", "name", "role", "avatarColor"]
+    },
+    "LateArrival": {
+      "title": "LateArrival",
+      "description": "Registro de puntualidad y retraso de alumno",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "studentName": { "type": "string", "maxLength": 150 },
+        "studentGroup": { "type": "string", "maxLength": 80 },
+        "date": { "type": "string", "maxLength": 20 },
+        "arrivalTime": { "type": "string", "maxLength": 20 },
+        "expectedTime": { "type": "string", "maxLength": 20 },
+        "minutesLate": { "type": "number" },
+        "justified": { "type": "boolean" },
+        "reason": { "type": "string", "maxLength": 500 },
+        "recordedBy": { "type": "string", "maxLength": 150 },
+        "familyNotified": { "type": "boolean" },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "studentName", "studentGroup", "date", "arrivalTime", "minutesLate", "justified", "recordedBy"]
+    },
+    "ClassConductConfig": {
+      "title": "ClassConductConfig",
+      "description": "Configuración de baremos y umbrales específicos por aula",
+      "type": "object",
+      "properties": {
+        "className": { "type": "string", "maxLength": 80 },
+        "behaviorTypes": { "type": "array" },
+        "thresholds": { "type": "object" },
+        "isCustomized": { "type": "boolean" },
+        "updatedAt": { "type": "string", "maxLength": 50 },
+        "updatedBy": { "type": "string", "maxLength": 150 }
+      },
+      "required": ["className", "thresholds"]
+    },
+    "CenterConfig": {
+      "title": "CenterConfig",
+      "description": "Configuraciones globales del centro educativo",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "warningThreshold": { "type": "number" },
+        "notifyFamilyOnThreshold": { "type": "boolean" },
+        "defaultExpectedTime": { "type": "string", "maxLength": 20 },
+        "updatedAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "warningThreshold", "defaultExpectedTime"]
+    }
+  },
+  "firestore": {
+    "/incidents/{incidentId}": {
+      "schema": "Incident",
+      "description": "Colección de incidencias disciplinarias y partes de aula"
+    },
+    "/classes/{classId}": {
+      "schema": "SchoolClass",
+      "description": "Colección de aulas y grupos del centro"
+    },
+    "/students/{studentId}": {
+      "schema": "ClassStudent",
+      "description": "Colección de estudiantes del centro educativo"
+    },
+    "/positives/{positiveId}": {
+      "schema": "PositiveBehavior",
+      "description": "Colección de conductas positivas y reconocimientos"
+    },
+    "/behaviorTypes/{typeId}": {
+      "schema": "BehaviorType",
+      "description": "Colección de catálogo de conductas y puntuaciones de baremo"
+    },
+    "/profiles/{profileId}": {
+      "schema": "UserProfile",
+      "description": "Colección de perfiles de profesores y equipo directivo"
+    },
+    "/lateArrivals/{arrivalId}": {
+      "schema": "LateArrival",
+      "description": "Colección de retrasos y partes de puntualidad"
+    },
+    "/classConductConfigs/{configId}": {
+      "schema": "ClassConductConfig",
+      "description": "Colección de configuraciones de baremo por aula"
+    },
+    "/config/{configId}": {
+      "schema": "CenterConfig",
+      "description": "Configuración del centro escolar (retrasos, umbrales)"
+    }
+  }
+}

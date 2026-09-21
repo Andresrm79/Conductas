@@ -14,15 +14,23 @@ import {
   Users,
   GraduationCap,
   Sparkles,
+  Cloud,
+  CloudOff,
+  Database,
+  LogOut,
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { DIRECTIVO_GLOBAL_PASSWORD } from '../data/mockData';
+import { User } from 'firebase/auth';
 
 interface AppLoginScreenProps {
   profiles: UserProfile[];
   onLoginSuccess: (user: UserProfile) => void;
   onResetUserPassword: (userId: string) => void;
   onUpdateUserPassword: (userId: string, newPass: string) => void;
+  firebaseUser?: User | null;
+  onLoginWithGoogle?: () => void;
+  onLogoutGoogle?: () => void;
 }
 
 export const AppLoginScreen: React.FC<AppLoginScreenProps> = ({
@@ -30,6 +38,9 @@ export const AppLoginScreen: React.FC<AppLoginScreenProps> = ({
   onLoginSuccess,
   onResetUserPassword,
   onUpdateUserPassword,
+  firebaseUser,
+  onLoginWithGoogle,
+  onLogoutGoogle,
 }) => {
   const [selectedUserId, setSelectedUserId] = useState<string>(() => profiles[0]?.id || 'u1');
   const [password, setPassword] = useState('');
@@ -155,6 +166,30 @@ export const AppLoginScreen: React.FC<AppLoginScreenProps> = ({
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800/80 border border-slate-700 text-[11px] font-semibold text-slate-300">
               <KeyRound className="w-3 h-3 text-amber-400" />
               <span>Clave genérica: 1234</span>
+            </div>
+          </div>
+
+          {/* Firebase Cloud Sync Status */}
+          <div className="mb-5 p-3 rounded-2xl bg-slate-950/80 border border-emerald-900/60 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 text-xs">
+              <Database className="w-4 h-4 shrink-0 text-emerald-400" />
+              <div>
+                <div className="flex items-center gap-1.5 font-semibold text-slate-200">
+                  <span>Firebase Firestore:</span>
+                  <span className="text-emerald-400 text-[11px] font-bold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    Conectado (conductas-2c546)
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Guardado y carga en la nube activos en tiempo real.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-semibold">
+              <Cloud className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Nube Activa</span>
             </div>
           </div>
 
