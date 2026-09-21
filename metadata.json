@@ -1,0 +1,8 @@
+{
+  "name": "Remix Gestión de Conductas Disruptivas",
+  "description": "Sistema integral para registro, análisis y seguimiento de incidencias y conductas disruptivas en el aula para profesores y equipo directivo, con soporte para importar y exportar hojas Excel.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
