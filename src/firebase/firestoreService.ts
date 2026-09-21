@@ -83,43 +83,43 @@ export async function seedInitialFirestoreDataIfEmpty(): Promise<boolean> {
 
     // Classes
     INITIAL_CLASSES.forEach((c) => {
-      batch.set(doc(db, COLLECTIONS.CLASSES, c.id), c);
+      batch.set(doc(db, COLLECTIONS.CLASSES, c.id), cleanForFirestore(c));
     });
 
     // Students
     INITIAL_STUDENTS.forEach((st) => {
-      batch.set(doc(db, COLLECTIONS.STUDENTS, st.id), st);
+      batch.set(doc(db, COLLECTIONS.STUDENTS, st.id), cleanForFirestore(st));
     });
 
     // Incidents
     INITIAL_INCIDENTS.forEach((inc) => {
-      batch.set(doc(db, COLLECTIONS.INCIDENTS, inc.id), inc);
+      batch.set(doc(db, COLLECTIONS.INCIDENTS, inc.id), cleanForFirestore(inc));
     });
 
     // Positives
     INITIAL_POSITIVES.forEach((pos) => {
-      batch.set(doc(db, COLLECTIONS.POSITIVES, pos.id), pos);
+      batch.set(doc(db, COLLECTIONS.POSITIVES, pos.id), cleanForFirestore(pos));
     });
 
     // Behavior types
     INITIAL_BEHAVIOR_TYPES.forEach((bt) => {
-      batch.set(doc(db, COLLECTIONS.BEHAVIOR_TYPES, bt.id), bt);
+      batch.set(doc(db, COLLECTIONS.BEHAVIOR_TYPES, bt.id), cleanForFirestore(bt));
     });
 
     // Profiles
     INITIAL_PROFILES.forEach((p) => {
-      batch.set(doc(db, COLLECTIONS.PROFILES, p.id), p);
+      batch.set(doc(db, COLLECTIONS.PROFILES, p.id), cleanForFirestore(p));
     });
 
     // Late arrivals
     INITIAL_LATE_ARRIVALS.forEach((la) => {
-      batch.set(doc(db, COLLECTIONS.LATE_ARRIVALS, la.id), la);
+      batch.set(doc(db, COLLECTIONS.LATE_ARRIVALS, la.id), cleanForFirestore(la));
     });
 
     // Late Config
     batch.set(doc(db, COLLECTIONS.CONFIG, 'lateArrivals'), {
       id: 'lateArrivals',
-      ...DEFAULT_LATE_CONFIG,
+      ...cleanForFirestore(DEFAULT_LATE_CONFIG),
       updatedAt: new Date().toISOString(),
     });
 
@@ -298,11 +298,32 @@ export function subscribeToCenterConfig(
   );
 }
 
+/**
+ * Strips undefined properties recursively so Firestore setDoc does not throw
+ * "Unsupported field value: undefined"
+ */
+export function cleanForFirestore<T>(data: T): any {
+  if (data === null || data === undefined) return null;
+  if (Array.isArray(data)) {
+    return data.map((item) => cleanForFirestore(item));
+  }
+  if (typeof data === 'object') {
+    const cleaned: Record<string, any> = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== undefined) {
+        cleaned[key] = cleanForFirestore(value);
+      }
+    }
+    return cleaned;
+  }
+  return data;
+}
+
 // Firestore Mutation Operations
 export async function saveIncidentToFirebase(incident: Incident): Promise<void> {
   const path = `${COLLECTIONS.INCIDENTS}/${incident.id}`;
   try {
-    await setDoc(doc(db, COLLECTIONS.INCIDENTS, incident.id), incident);
+    await setDoc(doc(db, COLLECTIONS.INCIDENTS, incident.id), cleanForFirestore(incident));
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
   }
@@ -320,7 +341,7 @@ export async function deleteIncidentFromFirebase(incidentId: string): Promise<vo
 export async function saveClassToFirebase(schoolClass: SchoolClass): Promise<void> {
   const path = `${COLLECTIONS.CLASSES}/${schoolClass.id}`;
   try {
-    await setDoc(doc(db, COLLECTIONS.CLASSES, schoolClass.id), schoolClass);
+    await setDoc(doc(db, COLLECTIONS.CLASSES, schoolClass.id), cleanForFirestore(schoolClass));
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
   }
@@ -338,7 +359,7 @@ export async function deleteClassFromFirebase(classId: string): Promise<void> {
 export async function saveStudentToFirebase(student: ClassStudent): Promise<void> {
   const path = `${COLLECTIONS.STUDENTS}/${student.id}`;
   try {
-    await setDoc(doc(db, COLLECTIONS.STUDENTS, student.id), student);
+    await setDoc(doc(db, COLLECTIONS.STUDENTS, student.id), cleanForFirestore(student));
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
   }
@@ -356,7 +377,7 @@ export async function deleteStudentFromFirebase(studentId: string): Promise<void
 export async function savePositiveToFirebase(positive: PositiveBehavior): Promise<void> {
   const path = `${COLLECTIONS.POSITIVES}/${positive.id}`;
   try {
-    await setDoc(doc(db, COLLECTIONS.POSITIVES, positive.id), positive);
+    await setDoc(doc(db, COLLECTIONS.POSITIVES, positive.id), cleanForFirestore(positive));
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
   }
@@ -374,7 +395,7 @@ export async function deletePositiveFromFirebase(positiveId: string): Promise<vo
 export async function saveBehaviorTypeToFirebase(bType: BehaviorType): Promise<void> {
   const path = `${COLLECTIONS.BEHAVIOR_TYPES}/${bType.id}`;
   try {
-    await setDoc(doc(db, COLLECTIONS.BEHAVIOR_TYPES, bType.id), bType);
+    await setDoc(doc(db, COLLECTIONS.BEHAVIOR_TYPES, bType.id), cleanForFirestore(bType));
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
   }
@@ -392,9 +413,27 @@ export async function deleteBehaviorTypeFromFirebase(typeId: string): Promise<vo
 export async function saveProfileToFirebase(profile: UserProfile): Promise<void> {
   const path = `${COLLECTIONS.PROFILES}/${profile.id}`;
   try {
-    await setDoc(doc(db, COLLECTIONS.PROFILES, profile.id), profile);
+    const raw: Record<string, any> = {
+      id: profile.id,
+      name: profile.name,
+      role: profile.role,
+      avatarColor: profile.avatarColor,
+      password: profile.password || '1234',
+      allowedClasses: profile.allowedClasses || ['ALL'],
+    };
+    if (profile.subject && profile.subject.trim()) {
+      raw.subject = profile.subject.trim();
+    }
+    if (profile.course && profile.course.trim()) {
+      raw.course = profile.course.trim();
+    }
+    const clean = cleanForFirestore(raw);
+    await setDoc(doc(db, COLLECTIONS.PROFILES, profile.id), clean);
+    console.log(`[Firestore] Profile "${profile.name}" (${profile.id}) successfully persisted.`);
   } catch (err) {
+    console.error(`[Firestore] Error saving profile "${profile.name}":`, err);
     handleFirestoreError(err, OperationType.WRITE, path);
+    throw err;
   }
 }
 
@@ -402,15 +441,18 @@ export async function deleteProfileFromFirebase(profileId: string): Promise<void
   const path = `${COLLECTIONS.PROFILES}/${profileId}`;
   try {
     await deleteDoc(doc(db, COLLECTIONS.PROFILES, profileId));
+    console.log(`[Firestore] Profile "${profileId}" deleted from Firebase.`);
   } catch (err) {
+    console.error(`[Firestore] Error deleting profile "${profileId}":`, err);
     handleFirestoreError(err, OperationType.DELETE, path);
+    throw err;
   }
 }
 
 export async function saveLateArrivalToFirebase(arrival: LateArrival): Promise<void> {
   const path = `${COLLECTIONS.LATE_ARRIVALS}/${arrival.id}`;
   try {
-    await setDoc(doc(db, COLLECTIONS.LATE_ARRIVALS, arrival.id), arrival);
+    await setDoc(doc(db, COLLECTIONS.LATE_ARRIVALS, arrival.id), cleanForFirestore(arrival));
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
   }
@@ -431,7 +473,7 @@ export async function saveClassConductConfigToFirebase(config: ClassConductConfi
   const path = `${COLLECTIONS.CLASS_CONFIGS}/${docId}`;
   try {
     await setDoc(doc(db, COLLECTIONS.CLASS_CONFIGS, docId), {
-      ...config,
+      ...cleanForFirestore(config),
       updatedAt: new Date().toISOString(),
     });
   } catch (err) {
@@ -444,7 +486,7 @@ export async function batchSaveIncidentsToFirebase(incidents: Incident[]): Promi
   try {
     const batch = writeBatch(db);
     incidents.forEach((inc) => {
-      batch.set(doc(db, COLLECTIONS.INCIDENTS, inc.id), inc);
+      batch.set(doc(db, COLLECTIONS.INCIDENTS, inc.id), cleanForFirestore(inc));
     });
     await batch.commit();
   } catch (err) {

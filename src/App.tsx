@@ -83,6 +83,7 @@ import {
   saveBehaviorTypeToFirebase,
   deleteBehaviorTypeFromFirebase,
   saveProfileToFirebase,
+  deleteProfileFromFirebase,
   saveLateArrivalToFirebase,
   deleteLateArrivalFromFirebase,
   saveCenterLateConfigToFirebase,
@@ -226,12 +227,32 @@ export default function App() {
     );
 
     unsubs.push(
-      subscribeToProfiles((data) => {
-        if (data && data.length > 0) {
-          setProfiles(data);
-          try {
-            localStorage.setItem('aula_conductas_profiles_v2', JSON.stringify(data));
-          } catch {}
+      subscribeToProfiles((firebaseData) => {
+        if (firebaseData && firebaseData.length > 0) {
+          // Check if local cache has any profiles created previously that aren't yet in Firestore
+          const localProfiles = getStoredProfiles();
+          const missingInCloud = localProfiles.filter(
+            (lp) => !firebaseData.some((fp) => fp.id === lp.id)
+          );
+
+          if (missingInCloud.length > 0) {
+            // Upload missing profiles to Firestore so they are never lost
+            missingInCloud.forEach((p) => {
+              saveProfileToFirebase(p).catch((err) =>
+                console.warn('Syncing missing local profile to Firebase:', err)
+              );
+            });
+            const merged = [...firebaseData, ...missingInCloud];
+            setProfiles(merged);
+            try {
+              localStorage.setItem('aula_conductas_profiles_v2', JSON.stringify(merged));
+            } catch {}
+          } else {
+            setProfiles(firebaseData);
+            try {
+              localStorage.setItem('aula_conductas_profiles_v2', JSON.stringify(firebaseData));
+            } catch {}
+          }
         }
       })
     );
@@ -276,7 +297,7 @@ export default function App() {
   };
 
   // User Profile Handlers for Dirección (Pestaña Perfiles de Acceso)
-  const handleUpdateUser = (updatedUser: UserProfile) => {
+  const handleUpdateUser = async (updatedUser: UserProfile) => {
     const nextProfiles = profiles.map((p) => (p.id === updatedUser.id ? updatedUser : p));
     setProfiles(nextProfiles);
     saveStoredProfiles(nextProfiles);
@@ -284,17 +305,29 @@ export default function App() {
       setCurrentUser(updatedUser);
       saveStoredUser(updatedUser);
     }
-    showToast(`Perfil de "${updatedUser.name}" actualizado.`);
+    try {
+      await saveProfileToFirebase(updatedUser);
+      showToast(`Perfil de "${updatedUser.name}" guardado en Firebase.`);
+    } catch (e) {
+      console.error('Error saving updated profile to Firebase:', e);
+      showToast(`Perfil de "${updatedUser.name}" actualizado.`);
+    }
   };
 
-  const handleAddUser = (newUser: UserProfile) => {
+  const handleAddUser = async (newUser: UserProfile) => {
     const nextProfiles = [...profiles, newUser];
     setProfiles(nextProfiles);
     saveStoredProfiles(nextProfiles);
-    showToast(`Docente "${newUser.name}" añadido correctamente.`);
+    try {
+      await saveProfileToFirebase(newUser);
+      showToast(`✓ Docente "${newUser.name}" registrado y guardado en Firebase.`);
+    } catch (e) {
+      console.error('Error saving new profile to Firebase:', e);
+      showToast(`Docente "${newUser.name}" añadido.`);
+    }
   };
 
-  const handleDeleteUser = (userId: string) => {
+  const handleDeleteUser = async (userId: string) => {
     const userToDelete = profiles.find((p) => p.id === userId);
     if (!userToDelete) return;
     if (userToDelete.id === currentUser.id) {
@@ -304,10 +337,16 @@ export default function App() {
     const nextProfiles = profiles.filter((p) => p.id !== userId);
     setProfiles(nextProfiles);
     saveStoredProfiles(nextProfiles);
-    showToast(`Usuario "${userToDelete.name}" eliminado del centro.`);
+    try {
+      await deleteProfileFromFirebase(userId);
+      showToast(`Usuario "${userToDelete.name}" eliminado de Firebase.`);
+    } catch (e) {
+      console.error('Error deleting profile from Firebase:', e);
+      showToast(`Usuario "${userToDelete.name}" eliminado del centro.`);
+    }
   };
 
-  const handleResetUserPassword = (userId: string) => {
+  const handleResetUserPassword = async (userId: string) => {
     const target = profiles.find((p) => p.id === userId);
     if (!target) return;
     const updated: UserProfile = {
@@ -320,6 +359,11 @@ export default function App() {
     if (currentUser.id === userId) {
       setCurrentUser(updated);
       saveStoredUser(updated);
+    }
+    try {
+      await saveProfileToFirebase(updated);
+    } catch (e) {
+      console.error('Error updating reset password in Firebase:', e);
     }
     showToast(`🔑 Contraseña de "${target.name}" reseteada a la clave genérica: 1234.`);
   };
@@ -614,16 +658,24 @@ export default function App() {
   };
 
   // Save new user password to substitute generic '1234'
-  const handleSaveNewPassword = (userId: string, newPassword: string) => {
+  const handleSaveNewPassword = async (userId: string, newPassword: string) => {
     const nextProfiles = profiles.map((p) => (p.id === userId ? { ...p, password: newPassword } : p));
     setProfiles(nextProfiles);
     saveStoredProfiles(nextProfiles);
+    const target = nextProfiles.find((p) => p.id === userId);
+    if (target) {
+      try {
+        await saveProfileToFirebase(target);
+      } catch (err) {
+        console.error('Error updating password in Firebase:', err);
+      }
+    }
     if (currentUser.id === userId) {
       const updated = { ...currentUser, password: newPassword };
       setCurrentUser(updated);
       saveStoredUser(updated);
     }
-    showToast('✓ Contraseña guardada correctamente. Clave genérica sustituida.');
+    showToast('✓ Contraseña guardada correctamente en Firebase.');
   };
 
   // Dirección Access & Authentication

@@ -97,7 +97,11 @@ service cloud.firestore {
         && data.id is string && data.id.size() <= 128
         && data.name is string && data.name.size() <= 150
         && data.role in ['Profesor', 'Tutor', 'Directivo', 'Orientador']
-        && data.avatarColor is string && data.avatarColor.size() <= 50;
+        && data.avatarColor is string && data.avatarColor.size() <= 50
+        && (!('password' in data) || (data.password is string && data.password.size() <= 100))
+        && (!('course' in data) || (data.course is string && data.course.size() <= 100))
+        && (!('subject' in data) || (data.subject is string && data.subject.size() <= 150))
+        && (!('allowedClasses' in data) || data.allowedClasses is list);
     }
 
     function isValidLateArrival(data) {
