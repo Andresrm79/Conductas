@@ -495,6 +495,110 @@ export async function deleteLateArrivalFromFirebase(arrivalId: string): Promise<
   }
 }
 
+export async function batchDeleteLateArrivalsFromFirebase(arrivalIds: string[]): Promise<void> {
+  if (!arrivalIds || arrivalIds.length === 0) return;
+  const path = COLLECTIONS.LATE_ARRIVALS;
+  try {
+    const batch = writeBatch(db);
+    arrivalIds.forEach((id) => {
+      batch.delete(doc(db, COLLECTIONS.LATE_ARRIVALS, id));
+    });
+    await batch.commit();
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, path);
+  }
+}
+
+/**
+ * Reconciles Firestore database by detecting and purging any incidents,
+ * positive behaviors, or late arrivals belonging to students who no longer
+ * exist in the enrolled students list.
+ */
+export async function purgeOrphanedIncidentsFromFirebase(
+  activeStudents: ClassStudent[]
+): Promise<{ deletedIncidents: number; deletedPositives: number; deletedLateArrivals: number }> {
+  try {
+    const studentKeys = new Set(
+      activeStudents.map(
+        (s) => `${s.className.trim().toLowerCase()}__${s.name.trim().toLowerCase()}`
+      )
+    );
+
+    // 1. Purge orphan incidents
+    const incSnapshot = await getDocs(collection(db, COLLECTIONS.INCIDENTS));
+    const incToDelete: string[] = [];
+    incSnapshot.forEach((d) => {
+      const data = d.data() as Incident;
+      if (data.studentName && data.studentGroup) {
+        const key = `${data.studentGroup.trim().toLowerCase()}__${data.studentName.trim().toLowerCase()}`;
+        if (!studentKeys.has(key)) {
+          incToDelete.push(d.id);
+        }
+      }
+    });
+
+    if (incToDelete.length > 0) {
+      console.log(`[Firestore] Deleting ${incToDelete.length} orphan incidents of non-existent students...`);
+      for (let i = 0; i < incToDelete.length; i += 400) {
+        const batch = writeBatch(db);
+        incToDelete.slice(i, i + 400).forEach((id) => batch.delete(doc(db, COLLECTIONS.INCIDENTS, id)));
+        await batch.commit();
+      }
+    }
+
+    // 2. Purge orphan positives
+    const posSnapshot = await getDocs(collection(db, COLLECTIONS.POSITIVES));
+    const posToDelete: string[] = [];
+    posSnapshot.forEach((d) => {
+      const data = d.data() as PositiveBehavior;
+      if (data.studentName && data.studentGroup) {
+        const key = `${data.studentGroup.trim().toLowerCase()}__${data.studentName.trim().toLowerCase()}`;
+        if (!studentKeys.has(key)) {
+          posToDelete.push(d.id);
+        }
+      }
+    });
+
+    if (posToDelete.length > 0) {
+      for (let i = 0; i < posToDelete.length; i += 400) {
+        const batch = writeBatch(db);
+        posToDelete.slice(i, i + 400).forEach((id) => batch.delete(doc(db, COLLECTIONS.POSITIVES, id)));
+        await batch.commit();
+      }
+    }
+
+    // 3. Purge orphan late arrivals
+    const lateSnapshot = await getDocs(collection(db, COLLECTIONS.LATE_ARRIVALS));
+    const lateToDelete: string[] = [];
+    lateSnapshot.forEach((d) => {
+      const data = d.data() as LateArrival;
+      if (data.studentName && data.studentGroup) {
+        const key = `${data.studentGroup.trim().toLowerCase()}__${data.studentName.trim().toLowerCase()}`;
+        if (!studentKeys.has(key)) {
+          lateToDelete.push(d.id);
+        }
+      }
+    });
+
+    if (lateToDelete.length > 0) {
+      for (let i = 0; i < lateToDelete.length; i += 400) {
+        const batch = writeBatch(db);
+        lateToDelete.slice(i, i + 400).forEach((id) => batch.delete(doc(db, COLLECTIONS.LATE_ARRIVALS, id)));
+        await batch.commit();
+      }
+    }
+
+    return {
+      deletedIncidents: incToDelete.length,
+      deletedPositives: posToDelete.length,
+      deletedLateArrivals: lateToDelete.length,
+    };
+  } catch (err) {
+    console.warn('[Firestore] Notice during orphan purge:', err);
+    return { deletedIncidents: 0, deletedPositives: 0, deletedLateArrivals: 0 };
+  }
+}
+
 export async function saveClassConductConfigToFirebase(config: ClassConductConfig): Promise<void> {
   // Sanitize className for document ID with safe alphanumeric string
   const docId = 'cfg_' + config.className.toLowerCase().replace(/[^a-z0-9]/g, '_');

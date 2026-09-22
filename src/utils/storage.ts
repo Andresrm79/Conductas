@@ -420,11 +420,35 @@ export function saveStoredStudents(students: ClassStudent[]): void {
 export function getStoredPositives(): PositiveBehavior[] {
   try {
     const raw = localStorage.getItem(POSITIVES_KEY);
+    let deletedSet = new Set<string>();
+    try {
+      const rawDeleted = localStorage.getItem('aula_conductas_deleted_students_v1');
+      if (rawDeleted) {
+        deletedSet = new Set<string>(JSON.parse(rawDeleted));
+      }
+    } catch {}
+
+    const storedStudents = getStoredStudents();
+    const validStudentKeys = new Set(
+      storedStudents
+        .filter((s) => !deletedSet.has(s.id) && !deletedSet.has(`${s.className.toLowerCase()}__${s.name.trim().toLowerCase()}`))
+        .map((s) => `${s.className.trim().toLowerCase()}__${s.name.trim().toLowerCase()}`)
+    );
+
     if (!raw) {
-      saveStoredPositives(INITIAL_POSITIVES);
-      return INITIAL_POSITIVES;
+      const seeded = INITIAL_POSITIVES.filter((p) =>
+        validStudentKeys.has(`${p.studentGroup.trim().toLowerCase()}__${p.studentName.trim().toLowerCase()}`)
+      );
+      saveStoredPositives(seeded);
+      return seeded;
     }
-    return JSON.parse(raw);
+    const parsed: PositiveBehavior[] = JSON.parse(raw);
+    return parsed.filter((p) => {
+      const key = `${p.studentGroup.trim().toLowerCase()}__${p.studentName.trim().toLowerCase()}`;
+      if (deletedSet.has(key)) return false;
+      if (validStudentKeys.size > 0 && !validStudentKeys.has(key)) return false;
+      return true;
+    });
   } catch (e) {
     console.error('Error reading positives from localStorage', e);
     return INITIAL_POSITIVES;
@@ -512,16 +536,40 @@ export function getStoredIncidents(): Incident[] {
   try {
     const raw = localStorage.getItem(INCIDENTS_KEY);
     const tutorConfirmations = getStoredTutorConfirmations();
+    let deletedSet = new Set<string>();
+    try {
+      const rawDeleted = localStorage.getItem('aula_conductas_deleted_students_v1');
+      if (rawDeleted) {
+        deletedSet = new Set<string>(JSON.parse(rawDeleted));
+      }
+    } catch {}
+
+    const storedStudents = getStoredStudents();
+    const validStudentKeys = new Set(
+      storedStudents
+        .filter((s) => !deletedSet.has(s.id) && !deletedSet.has(`${s.className.toLowerCase()}__${s.name.trim().toLowerCase()}`))
+        .map((s) => `${s.className.trim().toLowerCase()}__${s.name.trim().toLowerCase()}`)
+    );
+
     if (!raw) {
-      const seeded = INITIAL_INCIDENTS.map((inc) => ({
-        ...inc,
-        tutorReadConfirmation: tutorConfirmations[inc.id] || inc.tutorReadConfirmation,
-      }));
+      const seeded = INITIAL_INCIDENTS
+        .filter((inc) => validStudentKeys.has(`${inc.studentGroup.trim().toLowerCase()}__${inc.studentName.trim().toLowerCase()}`))
+        .map((inc) => ({
+          ...inc,
+          tutorReadConfirmation: tutorConfirmations[inc.id] || inc.tutorReadConfirmation,
+        }));
       saveIncidents(seeded);
       return seeded;
     }
     const parsed: Incident[] = JSON.parse(raw);
-    return parsed.map((inc) => ({
+    const filtered = parsed.filter((inc) => {
+      const key = `${inc.studentGroup.trim().toLowerCase()}__${inc.studentName.trim().toLowerCase()}`;
+      if (deletedSet.has(key)) return false;
+      if (validStudentKeys.size > 0 && !validStudentKeys.has(key)) return false;
+      return true;
+    });
+
+    return filtered.map((inc) => ({
       ...inc,
       tutorReadConfirmation: tutorConfirmations[inc.id] || inc.tutorReadConfirmation,
     }));
@@ -607,11 +655,35 @@ export function saveStoredUser(user: UserProfile): void {
 export function getStoredLateArrivals(): LateArrival[] {
   try {
     const raw = localStorage.getItem(LATE_ARRIVALS_KEY);
+    let deletedSet = new Set<string>();
+    try {
+      const rawDeleted = localStorage.getItem('aula_conductas_deleted_students_v1');
+      if (rawDeleted) {
+        deletedSet = new Set<string>(JSON.parse(rawDeleted));
+      }
+    } catch {}
+
+    const storedStudents = getStoredStudents();
+    const validStudentKeys = new Set(
+      storedStudents
+        .filter((s) => !deletedSet.has(s.id) && !deletedSet.has(`${s.className.toLowerCase()}__${s.name.trim().toLowerCase()}`))
+        .map((s) => `${s.className.trim().toLowerCase()}__${s.name.trim().toLowerCase()}`)
+    );
+
     if (!raw) {
-      saveStoredLateArrivals(INITIAL_LATE_ARRIVALS);
-      return INITIAL_LATE_ARRIVALS;
+      const seeded = INITIAL_LATE_ARRIVALS.filter((la) =>
+        validStudentKeys.has(`${la.studentGroup.trim().toLowerCase()}__${la.studentName.trim().toLowerCase()}`)
+      );
+      saveStoredLateArrivals(seeded);
+      return seeded;
     }
-    return JSON.parse(raw);
+    const parsed: LateArrival[] = JSON.parse(raw);
+    return parsed.filter((la) => {
+      const key = `${la.studentGroup.trim().toLowerCase()}__${la.studentName.trim().toLowerCase()}`;
+      if (deletedSet.has(key)) return false;
+      if (validStudentKeys.size > 0 && !validStudentKeys.has(key)) return false;
+      return true;
+    });
   } catch (e) {
     console.error('Error reading late arrivals from localStorage', e);
     return INITIAL_LATE_ARRIVALS;

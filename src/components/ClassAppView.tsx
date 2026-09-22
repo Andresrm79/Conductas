@@ -165,60 +165,33 @@ export const ClassAppView: React.FC<ClassAppViewProps> = ({
       }
     } catch {}
 
-    const matched = students.filter(
+    return students.filter(
       (s) =>
         s.className.toLowerCase() === schoolClass.name.toLowerCase() &&
         !deletedSet.has(s.id) &&
         !deletedSet.has(`${s.className.toLowerCase()}__${s.name.trim().toLowerCase()}`)
     );
-    if (matched.length > 0) return matched;
+  }, [students, schoolClass.name]);
 
-    // If students were previously explicitly deleted in this class, do not resurrect from incidents
-    const hasDeletedInThisClass = Array.from(deletedSet).some((key) =>
-      key.startsWith(`${schoolClass.name.toLowerCase()}__`)
-    );
-    if (hasDeletedInThisClass) {
-      return [];
-    }
-
-    // Fallback if none in mock list and no students have been explicitly deleted
-    const setOfNames = Array.from(
-      new Set(
-        incidents
-          .filter(
-            (i) =>
-              i.studentGroup.toLowerCase() === schoolClass.name.toLowerCase() &&
-              !deletedSet.has(
-                `${i.studentGroup.toLowerCase()}__${i.studentName.trim().toLowerCase()}`
-              )
-          )
-          .map((i) => i.studentName.trim())
-      )
-    );
-
-    return setOfNames.map((name, idx) => ({
-      id: `dyn-${idx}`,
-      name,
-      className: schoolClass.name,
-      avatarColor: 'bg-blue-600',
-      positivePoints: 0,
-      negativePoints: 1,
-    }));
-  }, [students, schoolClass.name, incidents]);
-
-  // Filter incidents for this class
+  // Filter incidents for this class (strictly for active enrolled students in this class)
   const classIncidents = useMemo(() => {
+    const validStudentNames = new Set(classStudents.map((s) => s.name.trim().toLowerCase()));
     return incidents.filter(
-      (i) => i.studentGroup.toLowerCase() === schoolClass.name.toLowerCase()
+      (i) =>
+        i.studentGroup.toLowerCase() === schoolClass.name.toLowerCase() &&
+        validStudentNames.has(i.studentName.trim().toLowerCase())
     );
-  }, [incidents, schoolClass.name]);
+  }, [incidents, schoolClass.name, classStudents]);
 
-  // Filter positives for this class
+  // Filter positives for this class (strictly for active enrolled students in this class)
   const classPositives = useMemo(() => {
+    const validStudentNames = new Set(classStudents.map((s) => s.name.trim().toLowerCase()));
     return positives.filter(
-      (p) => p.studentGroup.toLowerCase() === schoolClass.name.toLowerCase()
+      (p) =>
+        p.studentGroup.toLowerCase() === schoolClass.name.toLowerCase() &&
+        validStudentNames.has(p.studentName.trim().toLowerCase())
     );
-  }, [positives, schoolClass.name]);
+  }, [positives, schoolClass.name, classStudents]);
 
   // Quick incident count per student map
   const incidentsPerStudent = useMemo(() => {

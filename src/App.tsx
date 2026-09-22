@@ -83,6 +83,8 @@ import {
   deletePositiveFromFirebase,
   batchDeleteIncidentsFromFirebase,
   batchDeletePositivesFromFirebase,
+  batchDeleteLateArrivalsFromFirebase,
+  purgeOrphanedIncidentsFromFirebase,
   saveBehaviorTypeToFirebase,
   deleteBehaviorTypeFromFirebase,
   saveProfileToFirebase,
@@ -108,6 +110,8 @@ export default function App() {
 
   // Firebase Cloud Synchronization State (conductas-2c546)
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [hasLoadedStudents, setHasLoadedStudents] = useState<boolean>(false);
+  const [hasLoadedIncidents, setHasLoadedIncidents] = useState<boolean>(false);
 
   // Authentication Gate State - strictly requires user password before revealing any profiles or classes
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
@@ -168,6 +172,10 @@ export default function App() {
     });
 
     seedInitialFirestoreDataIfEmpty()
+      .then(async () => {
+        const activeSt = getStoredStudents();
+        await purgeOrphanedIncidentsFromFirebase(activeSt);
+      })
       .catch((err) => console.log('Firebase seed check:', err))
       .finally(() => setIsSyncing(false));
 
@@ -176,7 +184,7 @@ export default function App() {
     // Real-time Firestore Subscriptions for all datasets from conductas-2c546
     unsubs.push(
       subscribeToIncidents((data) => {
-        if (data && data.length > 0) {
+        if (Array.isArray(data)) {
           let deletedSet = new Set<string>();
           try {
             const rawDeleted = localStorage.getItem('aula_conductas_deleted_students_v1');
@@ -192,6 +200,7 @@ export default function App() {
               )
           );
           setIncidents(filtered);
+          setHasLoadedIncidents(true);
           try {
             localStorage.setItem('aula_conductas_incidencias_v1', JSON.stringify(filtered));
           } catch {}
@@ -212,7 +221,7 @@ export default function App() {
 
     unsubs.push(
       subscribeToStudents((data) => {
-        if (data && data.length > 0) {
+        if (Array.isArray(data)) {
           let deletedSet = new Set<string>();
           try {
             const rawDeleted = localStorage.getItem('aula_conductas_deleted_students_v1');
@@ -227,6 +236,7 @@ export default function App() {
               !deletedSet.has(`${s.className.toLowerCase()}__${s.name.trim().toLowerCase()}`)
           );
           setStudents(cleaned);
+          setHasLoadedStudents(true);
           try {
             localStorage.setItem('aula_conductas_students_v1', JSON.stringify(cleaned));
           } catch {}
@@ -236,7 +246,7 @@ export default function App() {
 
     unsubs.push(
       subscribeToPositives((data) => {
-        if (data && data.length > 0) {
+        if (Array.isArray(data)) {
           let deletedSet = new Set<string>();
           try {
             const rawDeleted = localStorage.getItem('aula_conductas_deleted_students_v1');
@@ -303,10 +313,24 @@ export default function App() {
 
     unsubs.push(
       subscribeToLateArrivals((data) => {
-        if (data && data.length > 0) {
-          setLateArrivals(data);
+        if (Array.isArray(data)) {
+          let deletedSet = new Set<string>();
           try {
-            localStorage.setItem('aula_conductas_late_arrivals_v1', JSON.stringify(data));
+            const rawDeleted = localStorage.getItem('aula_conductas_deleted_students_v1');
+            if (rawDeleted) {
+              deletedSet = new Set<string>(JSON.parse(rawDeleted));
+            }
+          } catch {}
+
+          const filtered = data.filter(
+            (la) =>
+              !deletedSet.has(
+                `${la.studentGroup.toLowerCase()}__${la.studentName.trim().toLowerCase()}`
+              )
+          );
+          setLateArrivals(filtered);
+          try {
+            localStorage.setItem('aula_conductas_late_arrivals_v1', JSON.stringify(filtered));
           } catch {}
         }
       })
@@ -327,6 +351,107 @@ export default function App() {
       unsubs.forEach((u) => u());
     };
   }, []);
+
+  // Automatic Cloud Reconciler:
+  // Ensures that whenever students or incidents are updated, any incidents,
+  // positives, or late arrivals belonging to deleted or nonexistent students are
+  // permanently deleted from the Firestore database (conductas-2c546) and UI.
+  useEffect(() => {
+    if (!hasLoadedStudents || !hasLoadedIncidents) return;
+
+    let deletedSet = new Set<string>();
+    try {
+      const rawDeleted = localStorage.getItem('aula_conductas_deleted_students_v1');
+      if (rawDeleted) {
+        deletedSet = new Set<string>(JSON.parse(rawDeleted));
+      }
+    } catch {}
+
+    const validStudentKeys = new Set(
+      students
+        .filter(
+          (s) =>
+            !deletedSet.has(s.id) &&
+            !deletedSet.has(`${s.className.toLowerCase()}__${s.name.trim().toLowerCase()}`)
+        )
+        .map((s) => `${s.className.trim().toLowerCase()}__${s.name.trim().toLowerCase()}`)
+    );
+
+    // 1. Incidents
+    const orphanIncidents = incidents.filter((inc) => {
+      const key = `${inc.studentGroup.trim().toLowerCase()}__${inc.studentName.trim().toLowerCase()}`;
+      return deletedSet.has(key) || !validStudentKeys.has(key);
+    });
+
+    if (orphanIncidents.length > 0) {
+      console.log(
+        `[Auto-Reconciler] Purging ${orphanIncidents.length} orphaned incidents from Firestore...`
+      );
+      const orphanIds = orphanIncidents.map((i) => i.id);
+      batchDeleteIncidentsFromFirebase(orphanIds).catch((err) =>
+        console.warn('Notice purging orphan incidents from Firebase:', err)
+      );
+
+      const keptIncidents = incidents.filter((inc) => {
+        const key = `${inc.studentGroup.trim().toLowerCase()}__${inc.studentName.trim().toLowerCase()}`;
+        return !deletedSet.has(key) && validStudentKeys.has(key);
+      });
+      setIncidents(keptIncidents);
+      try {
+        localStorage.setItem('aula_conductas_incidencias_v1', JSON.stringify(keptIncidents));
+      } catch {}
+    }
+
+    // 2. Positives
+    const orphanPositives = positives.filter((pos) => {
+      const key = `${pos.studentGroup.trim().toLowerCase()}__${pos.studentName.trim().toLowerCase()}`;
+      return deletedSet.has(key) || !validStudentKeys.has(key);
+    });
+
+    if (orphanPositives.length > 0) {
+      console.log(
+        `[Auto-Reconciler] Purging ${orphanPositives.length} orphaned positives from Firestore...`
+      );
+      const orphanPosIds = orphanPositives.map((p) => p.id);
+      batchDeletePositivesFromFirebase(orphanPosIds).catch((err) =>
+        console.warn('Notice purging orphan positives from Firebase:', err)
+      );
+
+      const keptPositives = positives.filter((pos) => {
+        const key = `${pos.studentGroup.trim().toLowerCase()}__${pos.studentName.trim().toLowerCase()}`;
+        return !deletedSet.has(key) && validStudentKeys.has(key);
+      });
+      setPositives(keptPositives);
+      try {
+        localStorage.setItem('aula_conductas_positives_v1', JSON.stringify(keptPositives));
+      } catch {}
+    }
+
+    // 3. Late arrivals
+    const orphanLates = lateArrivals.filter((la) => {
+      const key = `${la.studentGroup.trim().toLowerCase()}__${la.studentName.trim().toLowerCase()}`;
+      return deletedSet.has(key) || !validStudentKeys.has(key);
+    });
+
+    if (orphanLates.length > 0) {
+      console.log(
+        `[Auto-Reconciler] Purging ${orphanLates.length} orphaned late arrivals from Firestore...`
+      );
+      const orphanLateIds = orphanLates.map((l) => l.id);
+      batchDeleteLateArrivalsFromFirebase(orphanLateIds).catch((err) =>
+        console.warn('Notice purging orphan late arrivals from Firebase:', err)
+      );
+
+      const keptLates = lateArrivals.filter((la) => {
+        const key = `${la.studentGroup.trim().toLowerCase()}__${la.studentName.trim().toLowerCase()}`;
+        return !deletedSet.has(key) && validStudentKeys.has(key);
+      });
+      setLateArrivals(keptLates);
+      try {
+        localStorage.setItem('aula_conductas_late_arrivals_v1', JSON.stringify(keptLates));
+      } catch {}
+    }
+  }, [hasLoadedStudents, hasLoadedIncidents, students, incidents, positives, lateArrivals]);
 
   const handleForceSync = async () => {
     try {

@@ -303,7 +303,7 @@ export const INITIAL_INCIDENTS: Incident[] = [
   },
   {
     id: 'inc-003',
-    studentName: 'Lucía Fernández Ramos',
+    studentName: 'Aitana Reyes Gómez',
     studentGroup: '3º ESO A',
     date: '2026-09-09',
     timeSlot: '5ª Hora (12:30 - 13:30)',
@@ -344,7 +344,7 @@ export const INITIAL_INCIDENTS: Incident[] = [
   },
   {
     id: 'inc-005',
-    studentName: 'Sara Blanco Prieto',
+    studentName: 'Sara Romero Díaz',
     studentGroup: '2º ESO B',
     date: '2026-09-11',
     timeSlot: '3ª Hora (10:00 - 11:00)',
@@ -365,7 +365,7 @@ export const INITIAL_INCIDENTS: Incident[] = [
   },
   {
     id: 'inc-006',
-    studentName: 'Daniel Navarro Soto',
+    studentName: 'Rodrigo Sanz Peña',
     studentGroup: '4º ESO A',
     date: '2026-09-12',
     timeSlot: '1ª Hora (08:00 - 09:00)',

@@ -205,6 +205,94 @@ export const INITIAL_STUDENTS: ClassStudent[] = [
     negativePoints: 0,
   },
 
+  // 1º ESO C
+  {
+    id: 'st-1c-01',
+    name: 'Alejandro Domínguez Vera',
+    className: '1º ESO C',
+    avatarColor: 'bg-cyan-600',
+    positivePoints: 1,
+    negativePoints: 2,
+  },
+  {
+    id: 'st-1c-02',
+    name: 'Lucas Herrero Valls',
+    className: '1º ESO C',
+    avatarColor: 'bg-emerald-600',
+    positivePoints: 4,
+    negativePoints: 0,
+  },
+  {
+    id: 'st-1c-03',
+    name: 'Noa Morales Prieto',
+    className: '1º ESO C',
+    avatarColor: 'bg-teal-600',
+    positivePoints: 5,
+    negativePoints: 1,
+  },
+
+  // 2º ESO A
+  {
+    id: 'st-2a-01',
+    name: 'Manuel Serrano Cruz',
+    className: '2º ESO A',
+    avatarColor: 'bg-emerald-700',
+    positivePoints: 3,
+    negativePoints: 1,
+  },
+  {
+    id: 'st-2a-02',
+    name: 'Alba Iglesias Peña',
+    className: '2º ESO A',
+    avatarColor: 'bg-teal-600',
+    positivePoints: 6,
+    negativePoints: 0,
+  },
+  {
+    id: 'st-2a-03',
+    name: 'Rubén Castro Silva',
+    className: '2º ESO A',
+    avatarColor: 'bg-amber-600',
+    positivePoints: 2,
+    negativePoints: 2,
+  },
+
+  // 3º ESO B
+  {
+    id: 'st-3b-01',
+    name: 'Gabriel Rivas Lozano',
+    className: '3º ESO B',
+    avatarColor: 'bg-purple-600',
+    positivePoints: 4,
+    negativePoints: 0,
+  },
+  {
+    id: 'st-3b-02',
+    name: 'Carla Cano Ortiz',
+    className: '3º ESO B',
+    avatarColor: 'bg-indigo-600',
+    positivePoints: 5,
+    negativePoints: 1,
+  },
+
+  // 4º ESO B
+  {
+    id: 'st-4b-01',
+    name: 'Iván Pastor Vega',
+    className: '4º ESO B',
+    avatarColor: 'bg-violet-700',
+    positivePoints: 3,
+    negativePoints: 1,
+  },
+  {
+    id: 'st-4b-02',
+    name: 'Marina Solís Gallego',
+    className: '4º ESO B',
+    avatarColor: 'bg-pink-600',
+    positivePoints: 7,
+    negativePoints: 0,
+  },
+
   // 1º Bachillerato A
   {
     id: 'st-1bach-01',
