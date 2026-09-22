@@ -32,6 +32,7 @@ import {
   BarChart2,
   History,
   FileText,
+  X,
 } from 'lucide-react';
 import {
   Incident,
@@ -152,19 +153,45 @@ export const ClassAppView: React.FC<ClassAppViewProps> = ({
   const [positiveModalStudent, setPositiveModalStudent] = useState<ClassStudent | null>(null);
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<ClassStudent | null>(null);
+  const [studentToDelete, setStudentToDelete] = useState<ClassStudent | null>(null);
 
   // Filter students for this class
   const classStudents = useMemo(() => {
+    let deletedSet = new Set<string>();
+    try {
+      const rawDeleted = localStorage.getItem('aula_conductas_deleted_students_v1');
+      if (rawDeleted) {
+        deletedSet = new Set<string>(JSON.parse(rawDeleted));
+      }
+    } catch {}
+
     const matched = students.filter(
-      (s) => s.className.toLowerCase() === schoolClass.name.toLowerCase()
+      (s) =>
+        s.className.toLowerCase() === schoolClass.name.toLowerCase() &&
+        !deletedSet.has(s.id) &&
+        !deletedSet.has(`${s.className.toLowerCase()}__${s.name.trim().toLowerCase()}`)
     );
     if (matched.length > 0) return matched;
 
-    // Fallback if none in mock list
+    // If students were previously explicitly deleted in this class, do not resurrect from incidents
+    const hasDeletedInThisClass = Array.from(deletedSet).some((key) =>
+      key.startsWith(`${schoolClass.name.toLowerCase()}__`)
+    );
+    if (hasDeletedInThisClass) {
+      return [];
+    }
+
+    // Fallback if none in mock list and no students have been explicitly deleted
     const setOfNames = Array.from(
       new Set(
         incidents
-          .filter((i) => i.studentGroup.toLowerCase() === schoolClass.name.toLowerCase())
+          .filter(
+            (i) =>
+              i.studentGroup.toLowerCase() === schoolClass.name.toLowerCase() &&
+              !deletedSet.has(
+                `${i.studentGroup.toLowerCase()}__${i.studentName.trim().toLowerCase()}`
+              )
+          )
           .map((i) => i.studentName.trim())
       )
     );
@@ -827,6 +854,9 @@ export const ClassAppView: React.FC<ClassAppViewProps> = ({
                         <th className="py-3 px-3 text-center whitespace-nowrap">
                           Partes semana
                         </th>
+                        <th className="py-3 px-3 text-right pr-4 whitespace-nowrap">
+                          Acciones
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -936,14 +966,53 @@ export const ClassAppView: React.FC<ClassAppViewProps> = ({
                                 </span>
                               )}
                             </td>
+
+                            {/* Acciones: Editar / Eliminar */}
+                            <td
+                              className="py-3 px-3 text-right pr-4 whitespace-nowrap"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <div className="flex items-center justify-end gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingStudent(student)}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer"
+                                  title={`Editar datos de ${student.name}`}
+                                  aria-label={`Editar ${student.name}`}
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setStudentToDelete(student)}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                  title={`Eliminar a ${student.name} del aula`}
+                                  aria-label={`Eliminar a ${student.name}`}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
                           </tr>
                         );
                       })}
 
                       {filteredStudentSummaries.length === 0 && (
                         <tr>
-                          <td colSpan={5} className="py-8 text-center text-slate-400">
-                            No se encontraron alumnos con el filtro actual.
+                          <td colSpan={6} className="py-10 text-center text-slate-400">
+                            <div className="flex flex-col items-center justify-center gap-2">
+                              <Users className="w-7 h-7 text-slate-300 stroke-[1.5]" />
+                              <p className="font-semibold text-slate-600">
+                                {studentResumenSearch
+                                  ? 'No se encontraron alumnos con el filtro actual.'
+                                  : 'No hay alumnos registrados en esta clase.'}
+                              </p>
+                              {!studentResumenSearch && (
+                                <p className="text-xs text-slate-400 max-w-sm">
+                                  Pulsa en "+ Añadir Alumno" para dar de alta alumnos en este grupo.
+                                </p>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       )}
@@ -1398,6 +1467,15 @@ export const ClassAppView: React.FC<ClassAppViewProps> = ({
           }
           setEditingStudent(null);
         }}
+        onDeleteStudent={(id) => {
+          if (onDeleteStudent) {
+            onDeleteStudent(id);
+          }
+          if (baremoStudent?.id === id) {
+            setBaremoStudent(null);
+          }
+          setEditingStudent(null);
+        }}
       />
 
       {/* Modal: Ficha Resumen de Conductas del Alumno */}
@@ -1410,7 +1488,86 @@ export const ClassAppView: React.FC<ClassAppViewProps> = ({
           positives={classPositives}
           activeMonday={activeMonday}
           thresholds={classConductConfig.thresholds}
+          onEditStudent={(st) => setEditingStudent(st)}
+          onDeleteStudent={(id) => {
+            if (onDeleteStudent) {
+              onDeleteStudent(id);
+            }
+            setBaremoStudent(null);
+          }}
         />
+      )}
+
+      {/* Modal: Confirm Delete Student */}
+      {studentToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden">
+            <div className="bg-rose-600 p-5 text-white flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-white/20 text-white flex items-center justify-center">
+                  <Trash2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-rose-200 block">
+                    Baja de Alumnado
+                  </span>
+                  <h3 className="text-base font-bold text-white">
+                    Eliminar Alumno
+                  </h3>
+                </div>
+              </div>
+              <button
+                onClick={() => setStudentToDelete(null)}
+                className="p-1.5 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                title="Cancelar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
+                ¿Estás seguro de que deseas eliminar a <strong>{studentToDelete.name}</strong> del aula <strong>{schoolClass.name}</strong>?
+              </p>
+
+              <div className="p-3 bg-amber-50 rounded-2xl border border-amber-200 flex items-start gap-2.5 text-xs text-amber-900">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <p>
+                  El alumno se dará de baja de la clase y se eliminarán todos sus registros de incidencias y conductas asociados en este grupo.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setStudentToDelete(null)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onDeleteStudent && studentToDelete) {
+                      onDeleteStudent(studentToDelete.id);
+                      if (baremoStudent?.id === studentToDelete.id) {
+                        setBaremoStudent(null);
+                      }
+                      if (editingStudent?.id === studentToDelete.id) {
+                        setEditingStudent(null);
+                      }
+                      setStudentToDelete(null);
+                    }
+                  }}
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-transform active:scale-95 cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Eliminar Alumno</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

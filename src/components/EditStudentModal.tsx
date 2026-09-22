@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, UserCheck, ShieldAlert, Check } from 'lucide-react';
+import { X, UserCheck, ShieldAlert, Check, Trash2, AlertTriangle } from 'lucide-react';
 import { ClassStudent } from '../types';
 
 interface EditStudentModalProps {
@@ -7,6 +7,7 @@ interface EditStudentModalProps {
   onClose: () => void;
   student: ClassStudent | null;
   onUpdateStudent: (updatedStudent: ClassStudent) => void;
+  onDeleteStudent?: (studentId: string) => void;
 }
 
 const AVATAR_COLORS = [
@@ -25,12 +26,14 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
   onClose,
   student,
   onUpdateStudent,
+  onDeleteStudent,
 }) => {
   const [name, setName] = useState('');
   const [notes, setNotes] = useState('');
   const [selectedColor, setSelectedColor] = useState(AVATAR_COLORS[0]);
   const [positivePoints, setPositivePoints] = useState(0);
   const [negativePoints, setNegativePoints] = useState(0);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     if (student) {
@@ -39,6 +42,7 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
       setSelectedColor(student.avatarColor || AVATAR_COLORS[0]);
       setPositivePoints(student.positivePoints || 0);
       setNegativePoints(student.negativePoints || 0);
+      setShowDeleteConfirm(false);
     }
   }, [student]);
 
@@ -60,6 +64,13 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
       negativePoints: Number(negativePoints) || 0,
     });
     onClose();
+  };
+
+  const handleConfirmDelete = () => {
+    if (onDeleteStudent && student) {
+      onDeleteStudent(student.id);
+      onClose();
+    }
   };
 
   return (
@@ -162,22 +173,65 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
             />
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-transform active:scale-95 cursor-pointer"
-            >
-              <Check className="w-4 h-4 text-emerald-400" />
-              <span>Guardar Alumno</span>
-            </button>
-          </div>
+          {showDeleteConfirm ? (
+            <div className="pt-3 border-t border-rose-100 bg-rose-50/70 -mx-6 -mb-6 p-4 rounded-b-3xl space-y-3">
+              <div className="flex items-start gap-2 text-rose-800 text-xs">
+                <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <p>
+                  ¿Confirmas que deseas eliminar definitivamente a <strong>{student.name}</strong> de este grupo? Esta acción también eliminará sus registros de incidencias asociados.
+                </p>
+              </div>
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-white rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDelete}
+                  className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-transform active:scale-95 cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Sí, Eliminar Alumno</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+              {onDeleteStudent ? (
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="px-3 py-2 text-xs font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
+                  title="Eliminar este alumno del grupo"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Eliminar Alumno</span>
+                </button>
+              ) : (
+                <div />
+              )}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-transform active:scale-95 cursor-pointer"
+                >
+                  <Check className="w-4 h-4 text-emerald-400" />
+                  <span>Guardar Alumno</span>
+                </button>
+              </div>
+            </div>
+          )}
         </form>
       </div>
     </div>

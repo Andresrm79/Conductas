@@ -14,6 +14,8 @@ import {
   CheckCircle2,
   ExternalLink,
   ArrowRight,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 import { ClassStudent, Incident, PositiveBehavior, ConductThresholds } from '../types';
 import {
@@ -35,6 +37,8 @@ interface StudentBaremoModalProps {
   positives: PositiveBehavior[];
   activeMonday: Date;
   thresholds?: ConductThresholds;
+  onEditStudent?: (student: ClassStudent) => void;
+  onDeleteStudent?: (studentId: string) => void;
 }
 
 interface HistoryItem {
@@ -66,11 +70,14 @@ export const StudentBaremoModal: React.FC<StudentBaremoModalProps> = ({
   positives,
   activeMonday,
   thresholds,
+  onEditStudent,
+  onDeleteStudent,
 }) => {
   // Sub-view toggle: 'graficos' | 'listado'
   const [activeSection, setActiveSection] = useState<'graficos' | 'listado'>('graficos');
   const [listSearch, setListSearch] = useState('');
   const [listTypeFilter, setListTypeFilter] = useState<'ALL' | 'positiva' | 'disruptiva'>('ALL');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const normName = student ? student.name.trim().toLowerCase() : '';
 
@@ -281,14 +288,77 @@ export const StudentBaremoModal: React.FC<StudentBaremoModalProps> = ({
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
-            title="Cerrar ficha"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {onEditStudent && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onEditStudent(student);
+                }}
+                className="p-2 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer flex items-center gap-1 text-xs font-semibold"
+                title={`Editar datos de ${student.name}`}
+              >
+                <Pencil className="w-4 h-4 text-indigo-300" />
+                <span className="hidden sm:inline">Editar</span>
+              </button>
+            )}
+
+            {onDeleteStudent && (
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="p-2 rounded-xl text-rose-300 hover:text-rose-100 hover:bg-rose-500/20 transition-colors cursor-pointer flex items-center gap-1 text-xs font-semibold"
+                title={`Eliminar a ${student.name} del grupo`}
+              >
+                <Trash2 className="w-4 h-4 text-rose-400" />
+                <span className="hidden sm:inline">Eliminar</span>
+              </button>
+            )}
+
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer ml-1"
+              title="Cerrar ficha"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
+
+        {/* Confirmation banner if user clicked delete from the student ficha */}
+        {showDeleteConfirm && (
+          <div className="p-4 bg-rose-600 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in duration-150">
+            <div className="flex items-center gap-2.5">
+              <AlertTriangle className="w-5 h-5 text-amber-300 shrink-0" />
+              <p className="text-xs sm:text-sm font-medium">
+                ¿Eliminar a <strong>{student.name}</strong> y todos sus registros de incidencias asociados en <strong>{student.className}</strong>?
+              </p>
+            </div>
+            <div className="flex items-center gap-2 self-end sm:self-center">
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (onDeleteStudent && student) {
+                    onDeleteStudent(student.id);
+                    onClose();
+                  }
+                }}
+                className="px-3.5 py-1.5 bg-white text-rose-700 hover:bg-rose-50 rounded-xl text-xs font-black shadow-md flex items-center gap-1.5 transition-transform active:scale-95 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Sí, Eliminar Alumno</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* KPIs Banner: Incorpora la información Partes en la semana */}
         <div className="p-4 bg-slate-50 border-b border-slate-200 shrink-0">

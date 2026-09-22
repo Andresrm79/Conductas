@@ -80,6 +80,9 @@ import {
   saveStudentToFirebase,
   deleteStudentFromFirebase,
   savePositiveToFirebase,
+  deletePositiveFromFirebase,
+  batchDeleteIncidentsFromFirebase,
+  batchDeletePositivesFromFirebase,
   saveBehaviorTypeToFirebase,
   deleteBehaviorTypeFromFirebase,
   saveProfileToFirebase,
@@ -174,9 +177,23 @@ export default function App() {
     unsubs.push(
       subscribeToIncidents((data) => {
         if (data && data.length > 0) {
-          setIncidents(data);
+          let deletedSet = new Set<string>();
           try {
-            localStorage.setItem('aula_conductas_incidencias_v1', JSON.stringify(data));
+            const rawDeleted = localStorage.getItem('aula_conductas_deleted_students_v1');
+            if (rawDeleted) {
+              deletedSet = new Set<string>(JSON.parse(rawDeleted));
+            }
+          } catch {}
+
+          const filtered = data.filter(
+            (inc) =>
+              !deletedSet.has(
+                `${inc.studentGroup.toLowerCase()}__${inc.studentName.trim().toLowerCase()}`
+              )
+          );
+          setIncidents(filtered);
+          try {
+            localStorage.setItem('aula_conductas_incidencias_v1', JSON.stringify(filtered));
           } catch {}
         }
       })
@@ -196,9 +213,22 @@ export default function App() {
     unsubs.push(
       subscribeToStudents((data) => {
         if (data && data.length > 0) {
-          setStudents(data);
+          let deletedSet = new Set<string>();
           try {
-            localStorage.setItem('aula_conductas_students_v1', JSON.stringify(data));
+            const rawDeleted = localStorage.getItem('aula_conductas_deleted_students_v1');
+            if (rawDeleted) {
+              deletedSet = new Set<string>(JSON.parse(rawDeleted));
+            }
+          } catch {}
+
+          const cleaned = data.filter(
+            (s) =>
+              !deletedSet.has(s.id) &&
+              !deletedSet.has(`${s.className.toLowerCase()}__${s.name.trim().toLowerCase()}`)
+          );
+          setStudents(cleaned);
+          try {
+            localStorage.setItem('aula_conductas_students_v1', JSON.stringify(cleaned));
           } catch {}
         }
       })
@@ -207,9 +237,23 @@ export default function App() {
     unsubs.push(
       subscribeToPositives((data) => {
         if (data && data.length > 0) {
-          setPositives(data);
+          let deletedSet = new Set<string>();
           try {
-            localStorage.setItem('aula_conductas_positives_v1', JSON.stringify(data));
+            const rawDeleted = localStorage.getItem('aula_conductas_deleted_students_v1');
+            if (rawDeleted) {
+              deletedSet = new Set<string>(JSON.parse(rawDeleted));
+            }
+          } catch {}
+
+          const filtered = data.filter(
+            (pos) =>
+              !deletedSet.has(
+                `${pos.studentGroup.toLowerCase()}__${pos.studentName.trim().toLowerCase()}`
+              )
+          );
+          setPositives(filtered);
+          try {
+            localStorage.setItem('aula_conductas_positives_v1', JSON.stringify(filtered));
           } catch {}
         }
       })
@@ -514,9 +558,22 @@ export default function App() {
       ...studentData,
       id: `st-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
     };
+
+    // Remove from deleted set if re-adding
+    try {
+      const rawDeleted = localStorage.getItem('aula_conductas_deleted_students_v1');
+      if (rawDeleted) {
+        const deletedList: string[] = JSON.parse(rawDeleted);
+        const nameClassKey = `${studentData.className.toLowerCase()}__${studentData.name.trim().toLowerCase()}`;
+        const filtered = deletedList.filter((k) => k !== newSt.id && k !== nameClassKey);
+        localStorage.setItem('aula_conductas_deleted_students_v1', JSON.stringify(filtered));
+      }
+    } catch {}
+
     const nextSt = [...students, newSt];
     setStudents(nextSt);
     saveStoredStudents(nextSt);
+    saveStudentToFirebase(newSt).catch((err) => console.log('Firebase save student notice:', err));
     showToast(`Alumno "${studentData.name}" incorporado a ${studentData.className}.`);
   };
 
@@ -526,6 +583,7 @@ export default function App() {
     const nextStudents = students.map((s) => (s.id === updatedStudent.id ? updatedStudent : s));
     setStudents(nextStudents);
     saveStoredStudents(nextStudents);
+    saveStudentToFirebase(updatedStudent).catch((err) => console.log('Firebase update student notice:', err));
 
     // If student's name changed, synchronize with incidents and positives
     if (oldStudent && oldStudent.name.toLowerCase() !== updatedStudent.name.toLowerCase()) {
@@ -548,15 +606,109 @@ export default function App() {
     showToast(`Datos del alumno "${updatedStudent.name}" actualizados.`);
   };
 
-  // Delete student
+  // Delete student and all associated incident records
   const handleDeleteStudent = (studentId: string) => {
     const stToDelete = students.find((s) => s.id === studentId);
+    const targetName = (stToDelete?.name || '').trim().toLowerCase();
+    const targetClass = (stToDelete?.className || '').trim().toLowerCase();
+
+    // 1. Remove student from list
     const nextStudents = students.filter((s) => s.id !== studentId);
     setStudents(nextStudents);
     saveStoredStudents(nextStudents);
+
+    // Track deleted student so real-time sync or fallback does not restore it
+    try {
+      const rawDeleted = localStorage.getItem('aula_conductas_deleted_students_v1');
+      const deletedList: string[] = rawDeleted ? JSON.parse(rawDeleted) : [];
+      if (!deletedList.includes(studentId)) {
+        deletedList.push(studentId);
+      }
+      if (targetName && targetClass) {
+        const key = `${targetClass}__${targetName}`;
+        if (!deletedList.includes(key)) {
+          deletedList.push(key);
+        }
+      }
+      localStorage.setItem('aula_conductas_deleted_students_v1', JSON.stringify(deletedList));
+    } catch {}
+
     deleteStudentFromFirebase(studentId).catch((err) => console.log('Firebase delete student notice:', err));
+
+    // 2. Identify and delete all incidents associated with this student
+    if (targetName) {
+      const incidentsToDelete = incidents.filter((inc) => {
+        const matchName = inc.studentName.trim().toLowerCase() === targetName;
+        const matchClass = !targetClass || inc.studentGroup.trim().toLowerCase() === targetClass;
+        return matchName && matchClass;
+      });
+
+      if (incidentsToDelete.length > 0) {
+        const nextIncidents = incidents.filter((inc) => {
+          const matchName = inc.studentName.trim().toLowerCase() === targetName;
+          const matchClass = !targetClass || inc.studentGroup.trim().toLowerCase() === targetClass;
+          return !(matchName && matchClass);
+        });
+
+        setIncidents(nextIncidents);
+        saveIncidents(nextIncidents);
+
+        const incidentIds = incidentsToDelete.map((i) => i.id);
+        batchDeleteIncidentsFromFirebase(incidentIds).catch((err) =>
+          console.warn('Firebase batch delete incidents notice:', err)
+        );
+      }
+
+      // 3. Also clear any positive behaviors associated with this student in the group
+      const positivesToDelete = positives.filter((p) => {
+        const matchName = p.studentName.trim().toLowerCase() === targetName;
+        const matchClass = !targetClass || p.studentGroup.trim().toLowerCase() === targetClass;
+        return matchName && matchClass;
+      });
+
+      if (positivesToDelete.length > 0) {
+        const nextPositives = positives.filter((p) => {
+          const matchName = p.studentName.trim().toLowerCase() === targetName;
+          const matchClass = !targetClass || p.studentGroup.trim().toLowerCase() === targetClass;
+          return !(matchName && matchClass);
+        });
+
+        setPositives(nextPositives);
+        saveStoredPositives(nextPositives);
+
+        const positiveIds = positivesToDelete.map((p) => p.id);
+        batchDeletePositivesFromFirebase(positiveIds).catch((err) =>
+          console.warn('Firebase batch delete positives notice:', err)
+        );
+      }
+
+      // 4. Also clear any late arrivals associated with this student in the group
+      const lateToDelete = lateArrivals.filter((la) => {
+        const matchName = la.studentName.trim().toLowerCase() === targetName;
+        const matchClass = !targetClass || la.studentGroup.trim().toLowerCase() === targetClass;
+        return matchName && matchClass;
+      });
+
+      if (lateToDelete.length > 0) {
+        const nextLate = lateArrivals.filter((la) => {
+          const matchName = la.studentName.trim().toLowerCase() === targetName;
+          const matchClass = !targetClass || la.studentGroup.trim().toLowerCase() === targetClass;
+          return !(matchName && matchClass);
+        });
+
+        setLateArrivals(nextLate);
+        saveStoredLateArrivals(nextLate);
+
+        lateToDelete.forEach((la) => {
+          deleteLateArrivalFromFirebase(la.id).catch((err) =>
+            console.warn('Firebase delete late arrival notice:', err)
+          );
+        });
+      }
+    }
+
     if (stToDelete) {
-      showToast(`Alumno "${stToDelete.name}" eliminado del grupo.`);
+      showToast(`Alumno "${stToDelete.name}" y sus registros de incidencias han sido eliminados.`);
     }
   };
 

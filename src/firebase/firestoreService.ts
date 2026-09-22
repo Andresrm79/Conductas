@@ -338,6 +338,20 @@ export async function deleteIncidentFromFirebase(incidentId: string): Promise<vo
   }
 }
 
+export async function batchDeleteIncidentsFromFirebase(incidentIds: string[]): Promise<void> {
+  if (!incidentIds || incidentIds.length === 0) return;
+  const path = COLLECTIONS.INCIDENTS;
+  try {
+    const batch = writeBatch(db);
+    incidentIds.forEach((id) => {
+      batch.delete(doc(db, COLLECTIONS.INCIDENTS, id));
+    });
+    await batch.commit();
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, path);
+  }
+}
+
 export async function saveClassToFirebase(schoolClass: SchoolClass): Promise<void> {
   const path = `${COLLECTIONS.CLASSES}/${schoolClass.id}`;
   try {
@@ -387,6 +401,20 @@ export async function deletePositiveFromFirebase(positiveId: string): Promise<vo
   const path = `${COLLECTIONS.POSITIVES}/${positiveId}`;
   try {
     await deleteDoc(doc(db, COLLECTIONS.POSITIVES, positiveId));
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, path);
+  }
+}
+
+export async function batchDeletePositivesFromFirebase(positiveIds: string[]): Promise<void> {
+  if (!positiveIds || positiveIds.length === 0) return;
+  const path = COLLECTIONS.POSITIVES;
+  try {
+    const batch = writeBatch(db);
+    positiveIds.forEach((id) => {
+      batch.delete(doc(db, COLLECTIONS.POSITIVES, id));
+    });
+    await batch.commit();
   } catch (err) {
     handleFirestoreError(err, OperationType.DELETE, path);
   }
