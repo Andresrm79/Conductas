@@ -613,6 +613,16 @@ export async function saveClassConductConfigToFirebase(config: ClassConductConfi
   }
 }
 
+export async function deleteClassConductConfigFromFirebase(className: string): Promise<void> {
+  const docId = 'cfg_' + className.toLowerCase().replace(/[^a-z0-9]/g, '_');
+  const path = `${COLLECTIONS.CLASS_CONFIGS}/${docId}`;
+  try {
+    await deleteDoc(doc(db, COLLECTIONS.CLASS_CONFIGS, docId));
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, path);
+  }
+}
+
 export async function batchSaveIncidentsToFirebase(incidents: Incident[]): Promise<void> {
   const path = COLLECTIONS.INCIDENTS;
   try {

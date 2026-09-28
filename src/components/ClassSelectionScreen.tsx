@@ -21,6 +21,7 @@ import {
   Eye,
   EyeOff,
   LogOut,
+  Scale,
 } from 'lucide-react';
 import { Incident, SchoolClass, UserProfile } from '../types';
 import { INITIAL_PROFILES } from '../data/mockData';
@@ -43,6 +44,7 @@ interface ClassSelectionScreenProps {
   onOpenExcelImport: () => void;
   onOpenDirectivoAccess: () => void;
   onOpenChangePassword?: () => void;
+  onOpenBehaviorTypes?: () => void;
   onToggleHideClass?: (classId: string) => void;
   onLogout?: () => void;
 }
@@ -61,6 +63,7 @@ export const ClassSelectionScreen: React.FC<ClassSelectionScreenProps> = ({
   onOpenExcelImport,
   onOpenDirectivoAccess,
   onOpenChangePassword,
+  onOpenBehaviorTypes,
   onToggleHideClass,
   onLogout,
 }) => {
@@ -225,6 +228,19 @@ export const ClassSelectionScreen: React.FC<ClassSelectionScreenProps> = ({
               <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
               <span className="hidden sm:inline">Importar Excel</span>
             </button>
+
+            {/* Baremo Escolar y Puntuaciones de Conductas */}
+            {onOpenBehaviorTypes && (
+              <button
+                type="button"
+                onClick={onOpenBehaviorTypes}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-800 bg-amber-50 border border-amber-300 hover:bg-amber-100 rounded-xl transition-colors shadow-2xs cursor-pointer"
+                title="Configurar y consultar baremo de conductas disruptivas y positivas (puntuaciones)"
+              >
+                <Scale className="w-4 h-4 text-amber-600" />
+                <span className="hidden sm:inline">Baremo y Puntos</span>
+              </button>
+            )}
 
             {/* Cerrar Sesión */}
             {onLogout && (

@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   KeyRound,
   LogOut,
+  Scale,
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { INITIAL_PROFILES } from '../data/mockData';
@@ -27,6 +28,7 @@ interface DirectivoHeaderProps {
   onSelectUser?: (user: UserProfile) => void;
   onOpenChangePassword?: () => void;
   onLogout?: () => void;
+  onOpenBehaviorTypes?: () => void;
   activeNavTab?: DirectivoNavigationTab;
   activeTab?: DirectivoNavigationTab;
   onSelectNavTab?: (tab: DirectivoNavigationTab) => void;
@@ -51,6 +53,7 @@ export const DirectivoHeader: React.FC<DirectivoHeaderProps> = ({
   onSelectUser,
   onOpenChangePassword,
   onLogout,
+  onOpenBehaviorTypes,
   activeNavTab,
   activeTab,
   onSelectNavTab,
@@ -175,6 +178,20 @@ export const DirectivoHeader: React.FC<DirectivoHeaderProps> = ({
               <FileSpreadsheet className="w-4 h-4 text-emerald-400 shrink-0" />
               <span>Excel</span>
             </button>
+
+            {/* Baremo General y Puntuaciones de Conductas */}
+            {onOpenBehaviorTypes && (
+              <button
+                id="btn-directivo-baremo-types"
+                type="button"
+                onClick={onOpenBehaviorTypes}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-semibold text-amber-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-amber-500/40 rounded-xl transition-all cursor-pointer whitespace-nowrap shadow-2xs active:scale-95 shrink-0"
+                title="Configurar baremo de conductas disruptivas y positivas (puntuaciones para todo el centro)"
+              >
+                <Scale className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>Baremo y Puntos</span>
+              </button>
+            )}
 
             {/* Cerrar Sesión */}
             {onLogout && (

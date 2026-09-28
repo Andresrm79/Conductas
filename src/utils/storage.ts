@@ -21,10 +21,12 @@ import {
   saveStudentToFirebase,
   savePositiveToFirebase,
   saveBehaviorTypeToFirebase,
+  deleteBehaviorTypeFromFirebase,
   saveProfileToFirebase,
   saveLateArrivalToFirebase,
   saveCenterLateConfigToFirebase,
   saveClassConductConfigToFirebase,
+  deleteClassConductConfigFromFirebase,
   saveIncidentToFirebase,
 } from '../firebase/firestoreService';
 
@@ -98,6 +100,69 @@ export function deleteStoredBehaviorType(typeId: string): void {
   const current = getStoredBehaviorTypes();
   const updated = current.filter((t) => t.id !== typeId);
   saveStoredBehaviorTypes(updated);
+  deleteBehaviorTypeFromFirebase(typeId).catch((err) => console.log('Firebase delete notice:', err));
+}
+
+/**
+ * Updates a behavior type (points, name, description, active status)
+ * synchronously in:
+ * 1) The global center behaviorTypes catalog (localStorage + Firestore)
+ * 2) All per-class conduct catalogs (classConductConfigs in localStorage + Firestore)
+ * This guarantees the user's customized points never vanish upon app restart or class switching.
+ */
+export function updateBehaviorTypeEverywhere(updatedType: BehaviorType): void {
+  // 1. Update center catalog in localStorage and Firestore
+  updateStoredBehaviorType(updatedType);
+  saveBehaviorTypeToFirebase(updatedType).catch((err) =>
+    console.error('Error persisting behavior type to Firebase:', err)
+  );
+
+  // 2. Update across all class conduct configs
+  try {
+    const raw = localStorage.getItem(CLASS_CONDUCT_CONFIGS_KEY);
+    if (raw) {
+      const configs: Record<string, ClassConductConfig> = JSON.parse(raw);
+      let anyModified = false;
+      Object.keys(configs).forEach((className) => {
+        const cfg = configs[className];
+        if (cfg && Array.isArray(cfg.behaviorTypes)) {
+          let classModified = false;
+          const updatedTypes = cfg.behaviorTypes.map((b) => {
+            if (
+              b.id === updatedType.id ||
+              b.name.trim().toLowerCase() === updatedType.name.trim().toLowerCase()
+            ) {
+              classModified = true;
+              return {
+                ...b,
+                name: updatedType.name,
+                type: updatedType.type,
+                points: updatedType.points,
+                description: updatedType.description,
+                active: updatedType.active !== false,
+              };
+            }
+            return b;
+          });
+
+          if (classModified) {
+            anyModified = true;
+            cfg.behaviorTypes = updatedTypes;
+            cfg.updatedAt = new Date().toISOString();
+            saveClassConductConfigToFirebase(cfg).catch((err) =>
+              console.warn(`Error updating class config for ${className} in Firebase:`, err)
+            );
+          }
+        }
+      });
+
+      if (anyModified) {
+        localStorage.setItem(CLASS_CONDUCT_CONFIGS_KEY, JSON.stringify(configs));
+      }
+    }
+  } catch (e) {
+    console.error('Error propagating behavior type changes to class configs:', e);
+  }
 }
 
 // PER-CLASS CONDUCT CATALOG AND STATUS THRESHOLDS
@@ -163,6 +228,9 @@ export function resetClassConductConfigToDefault(className: string): ClassConduc
       delete configs[className];
       localStorage.setItem(CLASS_CONDUCT_CONFIGS_KEY, JSON.stringify(configs));
     }
+    deleteClassConductConfigFromFirebase(className).catch((err) =>
+      console.log('Firebase delete class config notice:', err)
+    );
   } catch (e) {
     console.error('Error resetting class conduct config', e);
   }
@@ -174,15 +242,23 @@ export function applyClassConfigToAllClasses(sourceConfig: ClassConductConfig, a
     const raw = localStorage.getItem(CLASS_CONDUCT_CONFIGS_KEY);
     const configs: Record<string, ClassConductConfig> = raw ? JSON.parse(raw) : {};
     allClassNames.forEach((name) => {
-      configs[name] = {
+      const classCfg: ClassConductConfig = {
         className: name,
         behaviorTypes: sourceConfig.behaviorTypes.map((b) => ({ ...b, className: name })),
         thresholds: { ...sourceConfig.thresholds },
         isCustomized: true,
         updatedAt: new Date().toISOString(),
       };
+      configs[name] = classCfg;
+      // Persist to Firebase for each class
+      saveClassConductConfigToFirebase(classCfg).catch((err) =>
+        console.warn(`Error saving config for ${name} to Firebase:`, err)
+      );
     });
     localStorage.setItem(CLASS_CONDUCT_CONFIGS_KEY, JSON.stringify(configs));
+
+    // Also update center catalog with these behavior types and points
+    saveStoredBehaviorTypes(sourceConfig.behaviorTypes);
   } catch (e) {
     console.error('Error copying class conduct config to all classes', e);
   }

@@ -22,6 +22,7 @@ import {
 import { UserProfile } from '../types';
 import { DIRECTIVO_GLOBAL_PASSWORD } from '../data/mockData';
 import { User } from 'firebase/auth';
+import { IesLogo } from './IesLogo';
 
 interface AppLoginScreenProps {
   profiles: UserProfile[];
@@ -135,17 +136,25 @@ export const AppLoginScreen: React.FC<AppLoginScreenProps> = ({
 
       {/* Main Container */}
       <div className="relative z-10 w-full max-w-lg">
-        {/* Brand Header */}
-        <div className="text-center mb-6 space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900/90 border border-slate-800 text-slate-300 text-xs font-semibold shadow-xs">
-            <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
-            <span>Sistema Escolar de Convivencia y Gestión de Aulas</span>
+        {/* Brand Header with Corporate Logo */}
+        <div className="text-center mb-6 flex flex-col items-center">
+          <div className="p-4 mb-3 inline-flex items-center justify-center rounded-3xl bg-white/5 border border-white/10 backdrop-blur-md shadow-2xl transition-transform hover:scale-105 duration-200">
+            <IesLogo
+              variant="full"
+              size="lg"
+              showSubtitle
+              subtitle="Portal de Convivencia Escolar"
+              inverted
+              className="drop-shadow-lg"
+            />
           </div>
           
-          <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white flex items-center justify-center gap-2.5">
-            <span>AulaConvivencia</span>
-          </h1>
-          <p className="text-sm text-slate-400 max-w-md mx-auto">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-slate-900/90 border border-slate-800 text-slate-300 text-xs font-semibold shadow-xs">
+            <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+            <span>Sistema Escolar de Gestión y Convivencia</span>
+          </div>
+          
+          <p className="text-xs text-slate-400 max-w-md mx-auto mt-2 leading-relaxed">
             Identifícate con tu usuario y clave personal para acceder a las aulas y herramientas asignadas por Dirección.
           </p>
         </div>

@@ -52,6 +52,9 @@ import {
   saveStoredProfiles,
   saveStoredTutorConfirmation,
   isUserAuthorizedForClass,
+  updateBehaviorTypeEverywhere,
+  addStoredBehaviorType,
+  deleteStoredBehaviorType,
 } from './utils/storage';
 import { exportIncidentsToExcel } from './utils/excelHelper';
 import { INITIAL_PROFILES, DIRECTIVO_GLOBAL_PASSWORD } from './data/mockData';
@@ -61,8 +64,9 @@ import { UserLoginModal } from './components/UserLoginModal';
 import { TutorParteAlertModal } from './components/TutorParteAlertModal';
 import { CreateClassModal } from './components/CreateClassModal';
 import { EditClassModal } from './components/EditClassModal';
+import { BehaviorTypesModal } from './components/BehaviorTypesModal';
 import { AppLoginScreen } from './components/AppLoginScreen';
-import { CheckCircle2, AlertTriangle, Plus, FileSpreadsheet, LayoutGrid, Clock, FileCheck, ShieldAlert } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Plus, FileSpreadsheet, LayoutGrid, Clock, FileCheck, ShieldAlert, Scale } from 'lucide-react';
 import {
   subscribeToIncidents,
   subscribeToClasses,
@@ -72,6 +76,7 @@ import {
   subscribeToProfiles,
   subscribeToLateArrivals,
   subscribeToCenterConfig,
+  subscribeToClassConductConfigs,
   seedInitialFirestoreDataIfEmpty,
   saveIncidentToFirebase,
   deleteIncidentFromFirebase,
@@ -107,6 +112,7 @@ export default function App() {
   const [profiles, setProfiles] = useState<UserProfile[]>(() => getStoredProfiles());
   const [currentUser, setCurrentUser] = useState<UserProfile>(() => getStoredUser());
   const [activeTab, setActiveTab] = useState<'incidencias' | 'directivo' | 'alumnos'>('incidencias');
+  const [isBehaviorTypesModalOpen, setIsBehaviorTypesModalOpen] = useState(false);
 
   // Firebase Cloud Synchronization State (conductas-2c546)
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
@@ -342,6 +348,19 @@ export default function App() {
           setLateConfig(data);
           try {
             localStorage.setItem('aula_conductas_late_config_v1', JSON.stringify(data));
+          } catch {}
+        }
+      })
+    );
+
+    unsubs.push(
+      subscribeToClassConductConfigs((configsMap) => {
+        if (configsMap && Object.keys(configsMap).length > 0) {
+          try {
+            const raw = localStorage.getItem('aula_conductas_class_configs_v1');
+            const existing = raw ? JSON.parse(raw) : {};
+            const merged = { ...existing, ...configsMap };
+            localStorage.setItem('aula_conductas_class_configs_v1', JSON.stringify(merged));
           } catch {}
         }
       })
@@ -839,29 +858,26 @@ export default function App() {
 
   // Behavior Type CRUD handlers
   const handleAddBehaviorType = (typeData: Omit<BehaviorType, 'id'>) => {
-    const newType: BehaviorType = {
-      ...typeData,
-      id: `bt-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-    };
-    const next = [...behaviorTypes, newType];
+    const newType = addStoredBehaviorType(typeData);
+    saveBehaviorTypeToFirebase(newType).catch((err) => console.log('Firebase add behavior notice:', err));
+    const next = [newType, ...behaviorTypes.filter((b) => b.id !== newType.id)];
     setBehaviorTypes(next);
-    saveStoredBehaviorTypes(next);
-    showToast(`Conducta "${typeData.name}" añadida al baremo (${typeData.points > 0 ? `+${typeData.points}` : typeData.points} pts).`);
+    showToast(`Conducta "${typeData.name}" añadida al baremo (${newType.points > 0 ? `+${newType.points}` : newType.points} pts) y guardada.`);
   };
 
   const handleUpdateBehaviorType = (updatedType: BehaviorType) => {
+    updateBehaviorTypeEverywhere(updatedType);
     const next = behaviorTypes.map((b) => (b.id === updatedType.id ? updatedType : b));
     setBehaviorTypes(next);
-    saveStoredBehaviorTypes(next);
-    showToast(`Conducta "${updatedType.name}" actualizada en el baremo.`);
+    showToast(`Puntos de "${updatedType.name}" (${updatedType.points > 0 ? `+${updatedType.points}` : updatedType.points} pts) guardados correctamente.`);
   };
 
   const handleDeleteBehaviorType = (typeId: string) => {
     const toDelete = behaviorTypes.find((b) => b.id === typeId);
+    deleteStoredBehaviorType(typeId);
+    deleteBehaviorTypeFromFirebase(typeId).catch((err) => console.log('Firebase delete behavior notice:', err));
     const next = behaviorTypes.filter((b) => b.id !== typeId);
     setBehaviorTypes(next);
-    saveStoredBehaviorTypes(next);
-    deleteBehaviorTypeFromFirebase(typeId).catch((err) => console.log('Firebase delete behavior notice:', err));
     if (toDelete) {
       showToast(`Conducta "${toDelete.name}" eliminada del catálogo.`);
     }
@@ -1279,6 +1295,7 @@ export default function App() {
           profiles={profiles}
           onSelectUser={handleSelectUser}
           onLogout={handleLogout}
+          onOpenBehaviorTypes={() => setIsBehaviorTypesModalOpen(true)}
           activeNavTab={directivoNavTab}
           onSelectNavTab={setDirectivoNavTab}
           selectedClassFilter={directivoClassFilter}
@@ -1529,6 +1546,7 @@ export default function App() {
           onOpenExcelImport={() => setIsExcelImportOpen(true)}
           onOpenDirectivoAccess={handleOpenDirectivoAccess}
           onOpenChangePassword={() => setIsChangePasswordModalOpen(true)}
+          onOpenBehaviorTypes={() => setIsBehaviorTypesModalOpen(true)}
           onToggleHideClass={handleToggleHideClass}
         />
 
@@ -1609,6 +1627,7 @@ export default function App() {
         onChangeClass={handleChangeClass}
         onOpenDirectivoAccess={handleOpenDirectivoAccess}
         onOpenChangePassword={() => setIsChangePasswordModalOpen(true)}
+        onOpenBehaviorTypes={() => setIsBehaviorTypesModalOpen(true)}
         unreadPartesCount={unconfirmedTutorPartes.length}
         onOpenTutorPartes={() => setIsTutorAlertModalOpen(true)}
       />
@@ -1843,6 +1862,16 @@ export default function App() {
         currentUser={currentUser}
         onSaveNewPassword={handleSaveNewPassword}
         onResetPassword={handleResetUserPassword}
+      />
+
+      {/* Modal: Baremo Escolar y Catálogo General de Conductas */}
+      <BehaviorTypesModal
+        isOpen={isBehaviorTypesModalOpen}
+        onClose={() => setIsBehaviorTypesModalOpen(false)}
+        behaviorTypes={behaviorTypes}
+        onAddBehaviorType={handleAddBehaviorType}
+        onUpdateBehaviorType={handleUpdateBehaviorType}
+        onDeleteBehaviorType={handleDeleteBehaviorType}
       />
     </div>
   );

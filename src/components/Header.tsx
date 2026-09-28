@@ -14,6 +14,7 @@ import {
   ArrowLeft,
   KeyRound,
   LogOut,
+  Scale,
 } from 'lucide-react';
 import { UserProfile, UserRole } from '../types';
 import { INITIAL_PROFILES } from '../data/mockData';
@@ -36,6 +37,7 @@ interface HeaderProps {
   unreadPartesCount?: number;
   onOpenTutorPartes?: () => void;
   onOpenChangePassword?: () => void;
+  onOpenBehaviorTypes?: () => void;
   onLogout?: () => void;
 }
 
@@ -55,6 +57,7 @@ export const Header: React.FC<HeaderProps> = ({
   unreadPartesCount,
   onOpenTutorPartes,
   onOpenChangePassword,
+  onOpenBehaviorTypes,
   onLogout,
 }) => {
   const availableProfiles = profiles && profiles.length > 0 ? profiles : INITIAL_PROFILES;
@@ -224,12 +227,25 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Clean Secondary Action Bar: Exclusively Behavior Registry Actions */}
-        <div className="flex items-center justify-between border-t border-slate-200 pt-2 pb-1 overflow-x-auto">
+        <div className="flex items-center justify-between border-t border-slate-200 pt-2 pb-1 overflow-x-auto gap-2">
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
             <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 text-slate-800">
               <FileSpreadsheet className="w-3.5 h-3.5 text-slate-700" />
               <span>Registro de Conductas</span>
             </span>
+
+            {onOpenBehaviorTypes && (
+              <button
+                type="button"
+                id="btn-header-baremo-types"
+                onClick={onOpenBehaviorTypes}
+                title="Configurar y consultar baremo de conductas disruptivas y positivas (puntuaciones)"
+                className="flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-slate-800 bg-amber-50 hover:bg-amber-100 border border-amber-300 rounded-xl transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
+              >
+                <Scale className="w-3.5 h-3.5 text-amber-600" />
+                <span>Baremo y Puntos</span>
+              </button>
+            )}
           </div>
 
           {/* Reset data helper */}

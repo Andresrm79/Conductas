@@ -115,10 +115,10 @@ export const ClassAppView: React.FC<ClassAppViewProps> = ({
     getClassConductConfig(schoolClass.name)
   );
 
-  // Sync config whenever active class changes
+  // Sync config whenever active class changes or behaviorTypes change
   useEffect(() => {
     setClassConductConfig(getClassConductConfig(schoolClass.name));
-  }, [schoolClass.name]);
+  }, [schoolClass.name, behaviorTypes]);
 
   // Permission check: Configuración Incidencias is visible ONLY for Tutor and Dirección
   const canAccessIncidentConfig = currentUser.role === 'Tutor' || currentUser.role === 'Directivo';

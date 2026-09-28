@@ -40,6 +40,7 @@ import {
   getPositivePoints,
   DEFAULT_CONDUCT_THRESHOLDS,
   applyClassConfigToAllClasses,
+  updateBehaviorTypeEverywhere,
 } from '../utils/storage';
 import * as XLSX from 'xlsx';
 
@@ -174,24 +175,27 @@ export const ClassIncidentConfigTab: React.FC<ClassIncidentConfigTabProps> = ({
 
     if (editingConduct) {
       // Update existing
-      const updatedList = classConfig.behaviorTypes.map((b) => {
-        if (b.id === editingConduct.id) {
-          return {
-            ...b,
-            name: formName.trim(),
-            description: formDescription.trim(),
-            type: formType,
-            points: pts,
-            active: formActive,
-          };
-        }
-        return b;
-      });
+      const updatedConduct: BehaviorType = {
+        ...editingConduct,
+        name: formName.trim(),
+        description: formDescription.trim(),
+        type: formType,
+        points: pts,
+        active: formActive,
+      };
+
+      const updatedList = classConfig.behaviorTypes.map((b) =>
+        b.id === editingConduct.id ? updatedConduct : b
+      );
+
       onSaveClassConfig({
         ...classConfig,
         behaviorTypes: updatedList,
       });
-      showBanner(`Conducta "${formName.trim()}" actualizada con éxito`);
+
+      // Synchronize in Firestore catalog and across all classes so points persist permanently
+      updateBehaviorTypeEverywhere(updatedConduct);
+      showBanner(`Conducta "${formName.trim()}" actualizada (${pts > 0 ? `+${pts}` : pts} pts) y guardada permanentemente`);
     } else {
       // Create new conduct
       const newConduct: BehaviorType = {
@@ -204,11 +208,14 @@ export const ClassIncidentConfigTab: React.FC<ClassIncidentConfigTabProps> = ({
         isCustom: true,
         className: schoolClass.name,
       };
+
       onSaveClassConfig({
         ...classConfig,
         behaviorTypes: [newConduct, ...classConfig.behaviorTypes],
       });
-      showBanner(`Nueva conducta "${formName.trim()}" creada para el aula ${schoolClass.name}`);
+
+      updateBehaviorTypeEverywhere(newConduct);
+      showBanner(`Nueva conducta "${formName.trim()}" creada y guardada permanentemente`);
     }
 
     resetConductForm();
@@ -218,13 +225,15 @@ export const ClassIncidentConfigTab: React.FC<ClassIncidentConfigTabProps> = ({
     const target = classConfig.behaviorTypes.find((b) => b.id === conductId);
     if (!target) return;
     const newActive = target.active === false; // toggle
+    const updatedConduct = { ...target, active: newActive };
     const updatedList = classConfig.behaviorTypes.map((b) =>
-      b.id === conductId ? { ...b, active: newActive } : b
+      b.id === conductId ? updatedConduct : b
     );
     onSaveClassConfig({
       ...classConfig,
       behaviorTypes: updatedList,
     });
+    updateBehaviorTypeEverywhere(updatedConduct);
     showBanner(
       `Conducta "${target.name}" marcada como ${newActive ? 'ACTIVA' : 'INACTIVA'}`
     );
