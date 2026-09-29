@@ -101,7 +101,6 @@ import {
   resetFirebaseToInitialData,
 } from './firebase/firestoreService';
 import { testConnection } from './firebase/config';
-import { FirebaseSyncBanner } from './components/FirebaseSyncBanner';
 
 export default function App() {
   const [incidents, setIncidents] = useState<Incident[]>(() => getStoredIncidents());
@@ -278,9 +277,21 @@ export default function App() {
     unsubs.push(
       subscribeToBehaviorTypes((data) => {
         if (data && data.length > 0) {
-          setBehaviorTypes(data);
+          const localTypes = getStoredBehaviorTypes();
+          const missingInCloud = localTypes.filter(
+            (lt) => !data.some((ct) => ct.id === lt.id)
+          );
+          if (missingInCloud.length > 0) {
+            missingInCloud.forEach((b) => {
+              saveBehaviorTypeToFirebase(b).catch((err) =>
+                console.warn('Syncing missing local behavior type to Firebase:', err)
+              );
+            });
+          }
+          const merged = [...data, ...missingInCloud];
+          setBehaviorTypes(merged);
           try {
-            localStorage.setItem('aula_conductas_behavior_types_v1', JSON.stringify(data));
+            localStorage.setItem('aula_conductas_behavior_types_v1', JSON.stringify(merged));
           } catch {}
         }
       })
@@ -1285,11 +1296,6 @@ export default function App() {
         )}
 
         {/* Dedicated Executive Management Header */}
-        <FirebaseSyncBanner
-          isSyncing={isSyncing}
-          onTriggerSync={handleForceSync}
-        />
-
         <DirectivoHeader
           currentUser={currentUser}
           profiles={profiles}
@@ -1526,11 +1532,6 @@ export default function App() {
           </div>
         )}
 
-        <FirebaseSyncBanner
-          isSyncing={isSyncing}
-          onTriggerSync={handleForceSync}
-        />
-
         <ClassSelectionScreen
           classes={classes}
           incidents={incidents}
@@ -1605,11 +1606,6 @@ export default function App() {
       )}
 
       {/* Main App Header */}
-      <FirebaseSyncBanner
-        isSyncing={isSyncing}
-        onTriggerSync={handleForceSync}
-      />
-
       <Header
         currentUser={currentUser}
         profiles={profiles}

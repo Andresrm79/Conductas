@@ -229,8 +229,8 @@ export const ClassSelectionScreen: React.FC<ClassSelectionScreenProps> = ({
               <span className="hidden sm:inline">Importar Excel</span>
             </button>
 
-            {/* Baremo Escolar y Puntuaciones de Conductas */}
-            {onOpenBehaviorTypes && (
+            {/* Baremo Escolar y Puntuaciones de Conductas (solo visible para perfiles no-profesor: Directivo / Orientador / Tutor) */}
+            {currentUser.role !== 'Profesor' && onOpenBehaviorTypes && (
               <button
                 type="button"
                 onClick={onOpenBehaviorTypes}

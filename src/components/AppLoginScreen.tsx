@@ -22,7 +22,6 @@ import {
 import { UserProfile } from '../types';
 import { DIRECTIVO_GLOBAL_PASSWORD } from '../data/mockData';
 import { User } from 'firebase/auth';
-import { IesLogo } from './IesLogo';
 
 interface AppLoginScreenProps {
   profiles: UserProfile[];
@@ -136,22 +135,15 @@ export const AppLoginScreen: React.FC<AppLoginScreenProps> = ({
 
       {/* Main Container */}
       <div className="relative z-10 w-full max-w-lg">
-        {/* Brand Header with Corporate Logo */}
+        {/* Header without any logo */}
         <div className="text-center mb-6 flex flex-col items-center">
-          <div className="p-4 mb-3 inline-flex items-center justify-center rounded-3xl bg-white/5 border border-white/10 backdrop-blur-md shadow-2xl transition-transform hover:scale-105 duration-200">
-            <IesLogo
-              variant="full"
-              size="lg"
-              showSubtitle
-              subtitle="Portal de Convivencia Escolar"
-              inverted
-              className="drop-shadow-lg"
-            />
-          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-white mb-2">
+            Gestión de Convivencia Escolar
+          </h1>
           
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-slate-900/90 border border-slate-800 text-slate-300 text-xs font-semibold shadow-xs">
             <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
-            <span>Sistema Escolar de Gestión y Convivencia</span>
+            <span>Sistema Escolar de Registro y Convivencia</span>
           </div>
           
           <p className="text-xs text-slate-400 max-w-md mx-auto mt-2 leading-relaxed">

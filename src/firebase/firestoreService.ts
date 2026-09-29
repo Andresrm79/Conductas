@@ -146,7 +146,11 @@ export function subscribeToIncidents(
       onData(items);
     },
     (error) => {
-      handleFirestoreError(error, OperationType.GET, path);
+      try {
+        handleFirestoreError(error, OperationType.GET, path);
+      } catch (e) {
+        console.warn(`Firestore subscription notice for ${path}:`, e);
+      }
     }
   );
 }
@@ -163,7 +167,11 @@ export function subscribeToClasses(
       onData(items);
     },
     (error) => {
-      handleFirestoreError(error, OperationType.GET, path);
+      try {
+        handleFirestoreError(error, OperationType.GET, path);
+      } catch (e) {
+        console.warn(`Firestore subscription notice for ${path}:`, e);
+      }
     }
   );
 }
@@ -180,7 +188,11 @@ export function subscribeToStudents(
       onData(items);
     },
     (error) => {
-      handleFirestoreError(error, OperationType.GET, path);
+      try {
+        handleFirestoreError(error, OperationType.GET, path);
+      } catch (e) {
+        console.warn(`Firestore subscription notice for ${path}:`, e);
+      }
     }
   );
 }
@@ -197,7 +209,11 @@ export function subscribeToPositives(
       onData(items);
     },
     (error) => {
-      handleFirestoreError(error, OperationType.GET, path);
+      try {
+        handleFirestoreError(error, OperationType.GET, path);
+      } catch (e) {
+        console.warn(`Firestore subscription notice for ${path}:`, e);
+      }
     }
   );
 }
@@ -214,7 +230,11 @@ export function subscribeToBehaviorTypes(
       onData(items);
     },
     (error) => {
-      handleFirestoreError(error, OperationType.GET, path);
+      try {
+        handleFirestoreError(error, OperationType.GET, path);
+      } catch (e) {
+        console.warn(`Firestore subscription notice for ${path}:`, e);
+      }
     }
   );
 }
@@ -231,7 +251,11 @@ export function subscribeToProfiles(
       onData(items);
     },
     (error) => {
-      handleFirestoreError(error, OperationType.GET, path);
+      try {
+        handleFirestoreError(error, OperationType.GET, path);
+      } catch (e) {
+        console.warn(`Firestore subscription notice for ${path}:`, e);
+      }
     }
   );
 }
@@ -249,7 +273,11 @@ export function subscribeToLateArrivals(
       onData(items);
     },
     (error) => {
-      handleFirestoreError(error, OperationType.GET, path);
+      try {
+        handleFirestoreError(error, OperationType.GET, path);
+      } catch (e) {
+        console.warn(`Firestore subscription notice for ${path}:`, e);
+      }
     }
   );
 }
@@ -271,7 +299,11 @@ export function subscribeToClassConductConfigs(
       onData(map);
     },
     (error) => {
-      handleFirestoreError(error, OperationType.GET, path);
+      try {
+        handleFirestoreError(error, OperationType.GET, path);
+      } catch (e) {
+        console.warn(`Firestore subscription notice for ${path}:`, e);
+      }
     }
   );
 }
@@ -293,7 +325,11 @@ export function subscribeToCenterConfig(
       }
     },
     (error) => {
-      handleFirestoreError(error, OperationType.GET, path);
+      try {
+        handleFirestoreError(error, OperationType.GET, path);
+      } catch (e) {
+        console.warn(`Firestore subscription notice for ${path}:`, e);
+      }
     }
   );
 }

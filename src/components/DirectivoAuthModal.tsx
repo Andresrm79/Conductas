@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Lock, ShieldAlert, KeyRound, X, CheckCircle2, UserCheck } from 'lucide-react';
 import { UserProfile } from '../types';
 import { DIRECTIVO_GLOBAL_PASSWORD, INITIAL_PROFILES } from '../data/mockData';
-import { IesLogo } from './IesLogo';
 
 interface DirectivoAuthModalProps {
   isOpen: boolean;
@@ -59,7 +58,10 @@ export const DirectivoAuthModal: React.FC<DirectivoAuthModalProps> = ({
             <div className="w-10 h-10 rounded-2xl bg-amber-400/20 text-amber-400 flex items-center justify-center border border-amber-400/30 shrink-0">
               <ShieldAlert className="w-5 h-5" />
             </div>
-            <IesLogo variant="badge" size="sm" inverted showSubtitle subtitle="Equipo Directivo" />
+            <div>
+              <span className="text-sm font-bold text-white block">Equipo Directivo</span>
+              <span className="text-[11px] text-slate-300">Gestión de Convivencia Escolar</span>
+            </div>
           </div>
 
           <span className="text-[11px] font-bold uppercase tracking-wider bg-purple-500/25 text-purple-300 px-2.5 py-0.5 rounded-md border border-purple-400/30">

@@ -226,41 +226,45 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Clean Secondary Action Bar: Exclusively Behavior Registry Actions */}
-        <div className="flex items-center justify-between border-t border-slate-200 pt-2 pb-1 overflow-x-auto gap-2">
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
-            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 text-slate-800">
-              <FileSpreadsheet className="w-3.5 h-3.5 text-slate-700" />
-              <span>Registro de Conductas</span>
-            </span>
+        {/* Secondary Action Bar: Exclusively Behavior Registry Actions (hidden for Profesor role) */}
+        {currentUser.role !== 'Profesor' && (
+          <div className="flex items-center justify-between border-t border-slate-200 pt-2 pb-1 overflow-x-auto gap-2">
+            <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 text-slate-800">
+                <FileSpreadsheet className="w-3.5 h-3.5 text-slate-700" />
+                <span>Registro de Conductas</span>
+              </span>
 
-            {onOpenBehaviorTypes && (
-              <button
-                type="button"
-                id="btn-header-baremo-types"
-                onClick={onOpenBehaviorTypes}
-                title="Configurar y consultar baremo de conductas disruptivas y positivas (puntuaciones)"
-                className="flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-slate-800 bg-amber-50 hover:bg-amber-100 border border-amber-300 rounded-xl transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
-              >
-                <Scale className="w-3.5 h-3.5 text-amber-600" />
-                <span>Baremo y Puntos</span>
-              </button>
+              {onOpenBehaviorTypes && (
+                <button
+                  type="button"
+                  id="btn-header-baremo-types"
+                  onClick={onOpenBehaviorTypes}
+                  title="Configurar y consultar baremo de conductas disruptivas y positivas (puntuaciones)"
+                  className="flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-slate-800 bg-amber-50 hover:bg-amber-100 border border-amber-300 rounded-xl transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
+                >
+                  <Scale className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Baremo y Puntos</span>
+                </button>
+              )}
+            </div>
+
+            {/* Reset data helper (solo accesible para el rol Directivo) */}
+            {currentUser.role === 'Directivo' && onResetData && (
+              <div className="flex items-center gap-2">
+                <button
+                  id="btn-reset-demo-data"
+                  onClick={onResetData}
+                  title="Restaurar datos de prueba iniciales"
+                  className="flex items-center gap-1 text-[11px] text-slate-700 hover:text-slate-900 px-2 py-1 rounded hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span className="hidden sm:inline">Restablecer datos demo</span>
+                </button>
+              </div>
             )}
           </div>
-
-          {/* Reset data helper */}
-          <div className="flex items-center gap-2">
-            <button
-              id="btn-reset-demo-data"
-              onClick={onResetData}
-              title="Restaurar datos de prueba iniciales"
-              className="flex items-center gap-1 text-[11px] text-slate-700 hover:text-slate-900 px-2 py-1 rounded hover:bg-slate-100 transition-colors cursor-pointer"
-            >
-              <RotateCcw className="w-3 h-3" />
-              <span className="hidden sm:inline">Restablecer datos demo</span>
-            </button>
-          </div>
-        </div>
+        )}
       </div>
     </header>
   );
