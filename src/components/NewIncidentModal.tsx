@@ -7,7 +7,7 @@ import {
   ThumbsDown,
   ThumbsUp,
 } from 'lucide-react';
-import { Incident, SeverityLevel, UserProfile, PositiveBehavior, BehaviorType, SchoolClass } from '../types';
+import { Incident, SeverityLevel, UserProfile, PositiveBehavior, BehaviorType, SchoolClass, ClassStudent } from '../types';
 import {
   COMMON_COURSES,
   COMMON_LOCATIONS,
@@ -25,7 +25,9 @@ interface NewIncidentModalProps {
   onSubmit: (incident: Omit<Incident, 'id' | 'createdAt' | 'updatedAt'>) => void;
   onSavePositive?: (positive: Omit<PositiveBehavior, 'id'>) => void;
   currentUser: UserProfile;
-  existingStudents: string[];
+  existingStudents?: string[];
+  students?: ClassStudent[];
+  incidents?: Incident[];
   defaultGroup?: string;
   initialStudentName?: string;
   behaviorTypes?: BehaviorType[];
@@ -38,7 +40,9 @@ export const NewIncidentModal: React.FC<NewIncidentModalProps> = ({
   onSubmit,
   onSavePositive,
   currentUser,
-  existingStudents,
+  existingStudents = [],
+  students = [],
+  incidents = [],
   defaultGroup,
   initialStudentName,
   behaviorTypes: propBehaviorTypes,
@@ -91,6 +95,46 @@ export const NewIncidentModal: React.FC<NewIncidentModalProps> = ({
   const [immediateMeasure, setImmediateMeasure] = useState(COMMON_MEASURES[0]);
   const [directivoNotes, setDirectivoNotes] = useState('');
 
+  // Compute the list of students strictly belonging to the currently selected studentGroup
+  const classStudentsList = useMemo(() => {
+    let deletedSet = new Set<string>();
+    try {
+      const rawDeleted = localStorage.getItem('aula_conductas_deleted_students_v1');
+      if (rawDeleted) {
+        deletedSet = new Set<string>(JSON.parse(rawDeleted));
+      }
+    } catch {}
+
+    const targetGroup = studentGroup.trim().toLowerCase();
+
+    const rosterNames = (students || [])
+      .filter(
+        (s) =>
+          s.className.trim().toLowerCase() === targetGroup &&
+          !deletedSet.has(s.id) &&
+          !deletedSet.has(`${s.className.toLowerCase()}__${s.name.trim().toLowerCase()}`)
+      )
+      .map((s) => s.name.trim());
+
+    const incidentNames = (incidents || [])
+      .filter(
+        (i) =>
+          i.studentGroup.trim().toLowerCase() === targetGroup &&
+          !deletedSet.has(`${i.studentGroup.toLowerCase()}__${i.studentName.trim().toLowerCase()}`)
+      )
+      .map((i) => i.studentName.trim());
+
+    let combined = Array.from(new Set([...rosterNames, ...incidentNames]))
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+
+    if (initialStudentName && initialStudentName.trim() && !combined.includes(initialStudentName.trim())) {
+      combined.unshift(initialStudentName.trim());
+    }
+
+    return combined;
+  }, [students, incidents, studentGroup, initialStudentName]);
+
   // Keep studentGroup and studentName in sync when opening modal
   useEffect(() => {
     if (isOpen) {
@@ -101,6 +145,8 @@ export const NewIncidentModal: React.FC<NewIncidentModalProps> = ({
       }
       if (initialStudentName) {
         setStudentName(initialStudentName);
+      } else {
+        setStudentName('');
       }
     }
   }, [isOpen, defaultGroup, initialStudentName, allowedCourses]);
@@ -288,34 +334,51 @@ export const NewIncidentModal: React.FC<NewIncidentModalProps> = ({
           {/* Row 1: Alumno y Curso */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="sm:col-span-2">
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              <label
+                htmlFor="select-student-name"
+                className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1"
+              >
                 Nombre y Apellidos del Alumno *
               </label>
-              <input
-                id="input-student-name"
-                type="text"
-                list="students-datalist"
+
+              <select
+                id="select-student-name"
                 required
-                placeholder="Ej. Mateo Gómez Vidal"
                 value={studentName}
                 onChange={(e) => setStudentName(e.target.value)}
-                className="w-full text-sm font-medium px-3.5 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
-              />
-              <datalist id="students-datalist">
-                {existingStudents.map((name) => (
-                  <option key={name} value={name} />
+                className="w-full text-sm font-semibold px-3.5 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-slate-900 focus:border-slate-900 bg-white cursor-pointer"
+              >
+                <option value="">
+                  {classStudentsList.length > 0
+                    ? `-- Seleccionar alumno de ${studentGroup} (${classStudentsList.length}) --`
+                    : `-- No hay alumnos dados de alta en ${studentGroup} --`}
+                </option>
+                {classStudentsList.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
                 ))}
-              </datalist>
+              </select>
+              <p className="text-[11px] text-slate-500 mt-1">
+                Alumnos dados de alta en {studentGroup}.
+              </p>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              <label
+                htmlFor="select-student-group"
+                className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1"
+              >
                 Curso / Grupo *
               </label>
               <select
                 id="select-student-group"
                 value={studentGroup}
-                onChange={(e) => setStudentGroup(e.target.value)}
+                onChange={(e) => {
+                  const newGroup = e.target.value;
+                  setStudentGroup(newGroup);
+                  setStudentName('');
+                }}
                 className="w-full text-sm font-medium px-3 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-slate-900 bg-white cursor-pointer"
               >
                 {allowedCourses.map((c) => (
@@ -332,8 +395,8 @@ export const NewIncidentModal: React.FC<NewIncidentModalProps> = ({
             </div>
           </div>
 
-          {/* Row 2: Fecha, Hora, Materia, Espacio */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+          {/* Row 2: Fecha, Hora, Espacio */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
             <div>
               <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
                 Fecha
@@ -360,24 +423,6 @@ export const NewIncidentModal: React.FC<NewIncidentModalProps> = ({
                 {COMMON_TIME_SLOTS.map((t) => (
                   <option key={t} value={t}>
                     {t}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Materia / Asignatura
-              </label>
-              <select
-                id="select-incident-subject"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                className="w-full text-xs font-medium px-2 py-1.5 rounded-lg border border-slate-300 bg-white"
-              >
-                {COMMON_SUBJECTS.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
                   </option>
                 ))}
               </select>

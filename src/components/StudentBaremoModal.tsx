@@ -16,6 +16,7 @@ import {
   ArrowRight,
   Pencil,
   Trash2,
+  PlusCircle,
 } from 'lucide-react';
 import { ClassStudent, Incident, PositiveBehavior, ConductThresholds } from '../types';
 import {
@@ -39,6 +40,7 @@ interface StudentBaremoModalProps {
   thresholds?: ConductThresholds;
   onEditStudent?: (student: ClassStudent) => void;
   onDeleteStudent?: (studentId: string) => void;
+  onOpenNewIncident?: (studentName: string) => void;
 }
 
 interface HistoryItem {
@@ -72,6 +74,7 @@ export const StudentBaremoModal: React.FC<StudentBaremoModalProps> = ({
   thresholds,
   onEditStudent,
   onDeleteStudent,
+  onOpenNewIncident,
 }) => {
   // Sub-view toggle: 'graficos' | 'listado'
   const [activeSection, setActiveSection] = useState<'graficos' | 'listado'>('graficos');
@@ -289,6 +292,21 @@ export const StudentBaremoModal: React.FC<StudentBaremoModalProps> = ({
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
+            {onOpenNewIncident && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenNewIncident(student.name);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
+                title={`Registrar conducta a ${student.name}`}
+              >
+                <PlusCircle className="w-4 h-4 text-slate-950" />
+                <span>+ Poner Conducta</span>
+              </button>
+            )}
+
             {onEditStudent && (
               <button
                 type="button"

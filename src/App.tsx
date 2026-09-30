@@ -1439,6 +1439,8 @@ export default function App() {
           onSavePositive={handleSavePositive}
           currentUser={currentUser}
           existingStudents={existingStudents}
+          students={students}
+          incidents={incidents}
           defaultGroup={directivoClassFilter !== 'ALL' ? directivoClassFilter : undefined}
           initialStudentName={prefilledStudentName}
           behaviorTypes={behaviorTypes}
@@ -1765,6 +1767,8 @@ export default function App() {
         onSavePositive={handleSavePositive}
         currentUser={currentUser}
         existingStudents={existingStudents}
+        students={students}
+        incidents={incidents}
         defaultGroup={activeClass !== 'Vista Global' ? activeClass : undefined}
         initialStudentName={prefilledStudentName}
         behaviorTypes={behaviorTypes}

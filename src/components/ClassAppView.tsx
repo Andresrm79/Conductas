@@ -784,7 +784,7 @@ export const ClassAppView: React.FC<ClassAppViewProps> = ({
                       <span>Listado de Alumnos y Baremos de Convivencia</span>
                     </h3>
                     <p className="text-xs text-slate-700 font-medium">
-                      Puntuación activa desde el lunes, semáforo disciplinario y partes de la semana (haz clic en cualquier fila para abrir la ficha de conductas)
+                      Puntuación activa desde el lunes, semáforo disciplinario y partes de la semana
                     </p>
                   </div>
 
@@ -839,9 +839,9 @@ export const ClassAppView: React.FC<ClassAppViewProps> = ({
                         return (
                           <tr
                             key={student.id}
-                            className="hover:bg-slate-50/70 transition-colors group cursor-pointer"
-                            onClick={() => setBaremoStudent(student)}
-                            title="Haz clic para ver la ficha completa de conductas del alumno"
+                            className="hover:bg-amber-50/60 transition-colors group cursor-pointer"
+                            onClick={() => onOpenNewIncident(student.name)}
+                            title={`Haz clic para registrar una conducta a ${student.name}`}
                           >
                             {/* Alumno */}
                             <td className="py-3 px-3.5">
@@ -849,7 +849,7 @@ export const ClassAppView: React.FC<ClassAppViewProps> = ({
                                 <div
                                   className={`w-8 h-8 rounded-xl ${
                                     student.avatarColor || 'bg-blue-600'
-                                  } text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs`}
+                                  } text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform`}
                                 >
                                   {student.name
                                     .split(' ')
@@ -940,12 +940,21 @@ export const ClassAppView: React.FC<ClassAppViewProps> = ({
                               )}
                             </td>
 
-                            {/* Acciones: Editar / Eliminar */}
+                            {/* Acciones: Expediente / Editar / Eliminar */}
                             <td
                               className="py-3 px-3 text-right pr-4 whitespace-nowrap"
                               onClick={(e) => e.stopPropagation()}
                             >
                               <div className="flex items-center justify-end gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => setBaremoStudent(student)}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                                  title={`Ver expediente y gráfica de conductas de ${student.name}`}
+                                  aria-label={`Ver expediente de ${student.name}`}
+                                >
+                                  <FileText className="w-3.5 h-3.5 text-slate-600" />
+                                </button>
                                 <button
                                   type="button"
                                   onClick={() => setEditingStudent(student)}
@@ -1461,6 +1470,7 @@ export const ClassAppView: React.FC<ClassAppViewProps> = ({
           positives={classPositives}
           activeMonday={activeMonday}
           thresholds={classConductConfig.thresholds}
+          onOpenNewIncident={onOpenNewIncident}
           onEditStudent={(st) => setEditingStudent(st)}
           onDeleteStudent={(id) => {
             if (onDeleteStudent) {
