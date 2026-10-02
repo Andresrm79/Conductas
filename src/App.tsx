@@ -177,10 +177,6 @@ export default function App() {
     });
 
     seedInitialFirestoreDataIfEmpty()
-      .then(async () => {
-        const activeSt = getStoredStudents();
-        await purgeOrphanedIncidentsFromFirebase(activeSt);
-      })
       .catch((err) => console.log('Firebase seed check:', err))
       .finally(() => setIsSyncing(false));
 
@@ -190,24 +186,10 @@ export default function App() {
     unsubs.push(
       subscribeToIncidents((data) => {
         if (Array.isArray(data)) {
-          let deletedSet = new Set<string>();
-          try {
-            const rawDeleted = localStorage.getItem('aula_conductas_deleted_students_v1');
-            if (rawDeleted) {
-              deletedSet = new Set<string>(JSON.parse(rawDeleted));
-            }
-          } catch {}
-
-          const filtered = data.filter(
-            (inc) =>
-              !deletedSet.has(
-                `${inc.studentGroup.toLowerCase()}__${inc.studentName.trim().toLowerCase()}`
-              )
-          );
-          setIncidents(filtered);
+          setIncidents(data);
           setHasLoadedIncidents(true);
           try {
-            localStorage.setItem('aula_conductas_incidencias_v1', JSON.stringify(filtered));
+            localStorage.setItem('aula_conductas_incidencias_v1', JSON.stringify(data));
           } catch {}
         }
       })
@@ -227,23 +209,10 @@ export default function App() {
     unsubs.push(
       subscribeToStudents((data) => {
         if (Array.isArray(data)) {
-          let deletedSet = new Set<string>();
-          try {
-            const rawDeleted = localStorage.getItem('aula_conductas_deleted_students_v1');
-            if (rawDeleted) {
-              deletedSet = new Set<string>(JSON.parse(rawDeleted));
-            }
-          } catch {}
-
-          const cleaned = data.filter(
-            (s) =>
-              !deletedSet.has(s.id) &&
-              !deletedSet.has(`${s.className.toLowerCase()}__${s.name.trim().toLowerCase()}`)
-          );
-          setStudents(cleaned);
+          setStudents(data);
           setHasLoadedStudents(true);
           try {
-            localStorage.setItem('aula_conductas_students_v1', JSON.stringify(cleaned));
+            localStorage.setItem('aula_conductas_students_v1', JSON.stringify(data));
           } catch {}
         }
       })
@@ -252,23 +221,9 @@ export default function App() {
     unsubs.push(
       subscribeToPositives((data) => {
         if (Array.isArray(data)) {
-          let deletedSet = new Set<string>();
+          setPositives(data);
           try {
-            const rawDeleted = localStorage.getItem('aula_conductas_deleted_students_v1');
-            if (rawDeleted) {
-              deletedSet = new Set<string>(JSON.parse(rawDeleted));
-            }
-          } catch {}
-
-          const filtered = data.filter(
-            (pos) =>
-              !deletedSet.has(
-                `${pos.studentGroup.toLowerCase()}__${pos.studentName.trim().toLowerCase()}`
-              )
-          );
-          setPositives(filtered);
-          try {
-            localStorage.setItem('aula_conductas_positives_v1', JSON.stringify(filtered));
+            localStorage.setItem('aula_conductas_positives_v1', JSON.stringify(data));
           } catch {}
         }
       })
@@ -331,23 +286,9 @@ export default function App() {
     unsubs.push(
       subscribeToLateArrivals((data) => {
         if (Array.isArray(data)) {
-          let deletedSet = new Set<string>();
+          setLateArrivals(data);
           try {
-            const rawDeleted = localStorage.getItem('aula_conductas_deleted_students_v1');
-            if (rawDeleted) {
-              deletedSet = new Set<string>(JSON.parse(rawDeleted));
-            }
-          } catch {}
-
-          const filtered = data.filter(
-            (la) =>
-              !deletedSet.has(
-                `${la.studentGroup.toLowerCase()}__${la.studentName.trim().toLowerCase()}`
-              )
-          );
-          setLateArrivals(filtered);
-          try {
-            localStorage.setItem('aula_conductas_late_arrivals_v1', JSON.stringify(filtered));
+            localStorage.setItem('aula_conductas_late_arrivals_v1', JSON.stringify(data));
           } catch {}
         }
       })
@@ -381,107 +322,6 @@ export default function App() {
       unsubs.forEach((u) => u());
     };
   }, []);
-
-  // Automatic Cloud Reconciler:
-  // Ensures that whenever students or incidents are updated, any incidents,
-  // positives, or late arrivals belonging to deleted or nonexistent students are
-  // permanently deleted from the Firestore database (conductas-2c546) and UI.
-  useEffect(() => {
-    if (!hasLoadedStudents || !hasLoadedIncidents) return;
-
-    let deletedSet = new Set<string>();
-    try {
-      const rawDeleted = localStorage.getItem('aula_conductas_deleted_students_v1');
-      if (rawDeleted) {
-        deletedSet = new Set<string>(JSON.parse(rawDeleted));
-      }
-    } catch {}
-
-    const validStudentKeys = new Set(
-      students
-        .filter(
-          (s) =>
-            !deletedSet.has(s.id) &&
-            !deletedSet.has(`${s.className.toLowerCase()}__${s.name.trim().toLowerCase()}`)
-        )
-        .map((s) => `${s.className.trim().toLowerCase()}__${s.name.trim().toLowerCase()}`)
-    );
-
-    // 1. Incidents
-    const orphanIncidents = incidents.filter((inc) => {
-      const key = `${inc.studentGroup.trim().toLowerCase()}__${inc.studentName.trim().toLowerCase()}`;
-      return deletedSet.has(key) || !validStudentKeys.has(key);
-    });
-
-    if (orphanIncidents.length > 0) {
-      console.log(
-        `[Auto-Reconciler] Purging ${orphanIncidents.length} orphaned incidents from Firestore...`
-      );
-      const orphanIds = orphanIncidents.map((i) => i.id);
-      batchDeleteIncidentsFromFirebase(orphanIds).catch((err) =>
-        console.warn('Notice purging orphan incidents from Firebase:', err)
-      );
-
-      const keptIncidents = incidents.filter((inc) => {
-        const key = `${inc.studentGroup.trim().toLowerCase()}__${inc.studentName.trim().toLowerCase()}`;
-        return !deletedSet.has(key) && validStudentKeys.has(key);
-      });
-      setIncidents(keptIncidents);
-      try {
-        localStorage.setItem('aula_conductas_incidencias_v1', JSON.stringify(keptIncidents));
-      } catch {}
-    }
-
-    // 2. Positives
-    const orphanPositives = positives.filter((pos) => {
-      const key = `${pos.studentGroup.trim().toLowerCase()}__${pos.studentName.trim().toLowerCase()}`;
-      return deletedSet.has(key) || !validStudentKeys.has(key);
-    });
-
-    if (orphanPositives.length > 0) {
-      console.log(
-        `[Auto-Reconciler] Purging ${orphanPositives.length} orphaned positives from Firestore...`
-      );
-      const orphanPosIds = orphanPositives.map((p) => p.id);
-      batchDeletePositivesFromFirebase(orphanPosIds).catch((err) =>
-        console.warn('Notice purging orphan positives from Firebase:', err)
-      );
-
-      const keptPositives = positives.filter((pos) => {
-        const key = `${pos.studentGroup.trim().toLowerCase()}__${pos.studentName.trim().toLowerCase()}`;
-        return !deletedSet.has(key) && validStudentKeys.has(key);
-      });
-      setPositives(keptPositives);
-      try {
-        localStorage.setItem('aula_conductas_positives_v1', JSON.stringify(keptPositives));
-      } catch {}
-    }
-
-    // 3. Late arrivals
-    const orphanLates = lateArrivals.filter((la) => {
-      const key = `${la.studentGroup.trim().toLowerCase()}__${la.studentName.trim().toLowerCase()}`;
-      return deletedSet.has(key) || !validStudentKeys.has(key);
-    });
-
-    if (orphanLates.length > 0) {
-      console.log(
-        `[Auto-Reconciler] Purging ${orphanLates.length} orphaned late arrivals from Firestore...`
-      );
-      const orphanLateIds = orphanLates.map((l) => l.id);
-      batchDeleteLateArrivalsFromFirebase(orphanLateIds).catch((err) =>
-        console.warn('Notice purging orphan late arrivals from Firebase:', err)
-      );
-
-      const keptLates = lateArrivals.filter((la) => {
-        const key = `${la.studentGroup.trim().toLowerCase()}__${la.studentName.trim().toLowerCase()}`;
-        return !deletedSet.has(key) && validStudentKeys.has(key);
-      });
-      setLateArrivals(keptLates);
-      try {
-        localStorage.setItem('aula_conductas_late_arrivals_v1', JSON.stringify(keptLates));
-      } catch {}
-    }
-  }, [hasLoadedStudents, hasLoadedIncidents, students, incidents, positives, lateArrivals]);
 
   const handleForceSync = async () => {
     try {
@@ -685,7 +525,7 @@ export default function App() {
   };
 
   // Save positive behavior points
-  const handleSavePositive = (posData: Omit<PositiveBehavior, 'id'>) => {
+  const handleSavePositive = async (posData: Omit<PositiveBehavior, 'id'>) => {
     const newPos: PositiveBehavior = {
       ...posData,
       id: `pos-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
@@ -694,10 +534,20 @@ export default function App() {
     setPositives(nextPos);
     saveStoredPositives(nextPos);
 
+    // Save directly to Firebase
+    try {
+      await savePositiveToFirebase(newPos);
+      console.log('[Firestore] Conducta positiva guardada:', newPos.id);
+    } catch (err) {
+      console.error('[Firestore] Error guardando conducta positiva:', err);
+    }
+
     // Update positive count on student
     const nextStudents = students.map((s) => {
       if (s.name.toLowerCase() === posData.studentName.toLowerCase()) {
-        return { ...s, positivePoints: (s.positivePoints || 0) + posData.points };
+        const updatedSt = { ...s, positivePoints: (s.positivePoints || 0) + posData.points };
+        saveStudentToFirebase(updatedSt).catch((e) => console.warn(e));
+        return updatedSt;
       }
       return s;
     });
@@ -1057,7 +907,7 @@ export default function App() {
   };
 
   // Create new incident
-  const handleCreateIncident = (
+  const handleCreateIncident = async (
     data: Omit<Incident, 'id' | 'createdAt' | 'updatedAt'>
   ) => {
     const timestamp = new Date().toISOString();
@@ -1069,36 +919,106 @@ export default function App() {
     };
 
     const updated = [newIncident, ...incidents];
-    handleUpdateIncidents(updated);
+    setIncidents(updated);
+    saveIncidents(updated);
+
+    // Persist directly to Firebase
+    try {
+      await saveIncidentToFirebase(newIncident);
+      console.log('[Firestore] Incidencia guardada con éxito:', newIncident.id);
+    } catch (err) {
+      console.error('[Firestore] Error guardando incidencia:', err);
+    }
+
     showToast(`Incidencia registrada para ${newIncident.studentName} (${newIncident.severity})`);
   };
 
   // Update existing incident
-  const handleUpdateIncident = (updated: Incident) => {
+  const handleUpdateIncident = async (updated: Incident) => {
     const nextList = incidents.map((i) => (i.id === updated.id ? updated : i));
-    handleUpdateIncidents(nextList);
+    setIncidents(nextList);
+    saveIncidents(nextList);
+
+    try {
+      await saveIncidentToFirebase(updated);
+      console.log('[Firestore] Incidencia actualizada:', updated.id);
+    } catch (err) {
+      console.error('[Firestore] Error actualizando incidencia:', err);
+    }
+
     showToast(`Parte de ${updated.studentName} actualizado`);
   };
 
+  // Delete single incident
+  const handleDeleteIncident = async (incidentId: string) => {
+    const nextList = incidents.filter((i) => i.id !== incidentId);
+    setIncidents(nextList);
+    saveIncidents(nextList);
+
+    try {
+      await deleteIncidentFromFirebase(incidentId);
+      console.log('[Firestore] Incidencia eliminada de Firebase:', incidentId);
+    } catch (err) {
+      console.error('[Firestore] Error eliminando incidencia de Firebase:', err);
+    }
+
+    showToast('Incidencia eliminada correctamente.');
+  };
+
+  // Delete single positive
+  const handleDeletePositive = async (positiveId: string) => {
+    const nextPos = positives.filter((p) => p.id !== positiveId);
+    setPositives(nextPos);
+    saveStoredPositives(nextPos);
+
+    try {
+      await deletePositiveFromFirebase(positiveId);
+      console.log('[Firestore] Conducta positiva eliminada de Firebase:', positiveId);
+    } catch (err) {
+      console.error('[Firestore] Error eliminando conducta positiva de Firebase:', err);
+    }
+
+    showToast('Felicitación eliminada.');
+  };
+
   // Quick status change from table
-  const handleQuickStatusChange = (incidentId: string, newStatus: IncidentStatus) => {
-    const nextList = incidents.map((i) =>
-      i.id === incidentId
-        ? { ...i, status: newStatus, updatedAt: new Date().toISOString() }
-        : i
-    );
-    handleUpdateIncidents(nextList);
+  const handleQuickStatusChange = async (incidentId: string, newStatus: IncidentStatus) => {
+    const target = incidents.find((i) => i.id === incidentId);
+    if (!target) return;
+    const updated = { ...target, status: newStatus, updatedAt: new Date().toISOString() };
+    const nextList = incidents.map((i) => (i.id === incidentId ? updated : i));
+    setIncidents(nextList);
+    saveIncidents(nextList);
+
+    try {
+      await saveIncidentToFirebase(updated);
+    } catch (err) {
+      console.error('[Firestore] Error actualizando estado en Firebase:', err);
+    }
+
     showToast(`Estado cambiado a "${newStatus}"`);
   };
 
   // Excel Import completed
-  const handleImportComplete = (importedRows: Incident[], mode: 'append' | 'replace') => {
+  const handleImportComplete = async (importedRows: Incident[], mode: 'append' | 'replace') => {
     if (mode === 'replace') {
-      handleUpdateIncidents(importedRows);
+      setIncidents(importedRows);
+      saveIncidents(importedRows);
+      try {
+        await batchSaveIncidentsToFirebase(importedRows);
+      } catch (err) {
+        console.error('[Firestore] Error importando incidencias en Firebase:', err);
+      }
       showToast(`¡Excelente! Base de datos inicializada con ${importedRows.length} registros del Excel.`);
     } else {
       const combined = [...importedRows, ...incidents];
-      handleUpdateIncidents(combined);
+      setIncidents(combined);
+      saveIncidents(combined);
+      try {
+        await batchSaveIncidentsToFirebase(importedRows);
+      } catch (err) {
+        console.error('[Firestore] Error guardando nuevas incidencias en Firebase:', err);
+      }
       showToast(`Se han añadido ${importedRows.length} nuevas incidencias desde el Excel.`);
     }
     setActiveTab('incidencias');
@@ -1460,6 +1380,7 @@ export default function App() {
           incident={selectedIncident}
           onClose={() => setSelectedIncident(null)}
           onUpdateIncident={handleUpdateIncident}
+          onDeleteIncident={handleDeleteIncident}
           currentUser={currentUser}
           onOpenStudentProfile={(name) => {
             setSelectedIncident(null);
@@ -1788,6 +1709,7 @@ export default function App() {
         incident={selectedIncident}
         onClose={() => setSelectedIncident(null)}
         onUpdateIncident={handleUpdateIncident}
+        onDeleteIncident={handleDeleteIncident}
         currentUser={currentUser}
         onOpenStudentProfile={(name) => {
           setSelectedIncident(null);

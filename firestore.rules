@@ -42,15 +42,16 @@ service cloud.firestore {
 
     // Entity Validations
     function isValidIncident(data) {
-      return data.keys().hasAll(['id', 'studentName', 'studentGroup', 'date', 'description', 'status', 'severity', 'teacherName'])
+      return data.keys().hasAll(['id', 'studentName', 'studentGroup', 'date'])
         && data.id is string && data.id.size() <= 128
         && data.studentName is string && data.studentName.size() <= 150
         && data.studentGroup is string && data.studentGroup.size() <= 80
         && data.date is string && data.date.size() <= 30
-        && data.severity in ['Leve', 'Grave', 'Muy Grave']
-        && data.status in ['Abierta', 'En seguimiento', 'Medida cumplida', 'Cerrada']
-        && data.description is string && data.description.size() <= 2000
-        && data.teacherName is string && data.teacherName.size() <= 150;
+        && (!('severity' in data) || data.severity in ['Leve', 'Grave', 'Muy Grave'])
+        && (!('status' in data) || data.status in ['Abierta', 'En seguimiento', 'Medida cumplida', 'Cerrada', 'Pendiente'])
+        && (!('description' in data) || (data.description is string && data.description.size() <= 5000))
+        && (!('teacherName' in data) || (data.teacherName is string && data.teacherName.size() <= 150))
+        && (!('points' in data) || data.points is number);
     }
 
     function isValidClass(data) {
@@ -65,23 +66,26 @@ service cloud.firestore {
     }
 
     function isValidStudent(data) {
-      return data.keys().hasAll(['id', 'name', 'className', 'positivePoints', 'negativePoints'])
+      return data.keys().hasAll(['id', 'name', 'className'])
         && data.id is string && data.id.size() <= 128
         && data.name is string && data.name.size() <= 150
         && data.className is string && data.className.size() <= 80
-        && data.positivePoints is number
-        && data.negativePoints is number;
+        && (!('positivePoints' in data) || data.positivePoints is number)
+        && (!('negativePoints' in data) || data.negativePoints is number)
+        && (!('avatarColor' in data) || (data.avatarColor is string && data.avatarColor.size() <= 50))
+        && (!('conductNotes' in data) || (data.conductNotes is string && data.conductNotes.size() <= 2000));
     }
 
     function isValidPositive(data) {
-      return data.keys().hasAll(['id', 'studentName', 'studentGroup', 'date', 'category', 'teacherName', 'points'])
+      return data.keys().hasAll(['id', 'studentName', 'studentGroup', 'date', 'points'])
         && data.id is string && data.id.size() <= 128
         && data.studentName is string && data.studentName.size() <= 150
         && data.studentGroup is string && data.studentGroup.size() <= 80
         && data.date is string && data.date.size() <= 30
-        && data.category is string && data.category.size() <= 150
-        && data.teacherName is string && data.teacherName.size() <= 150
-        && data.points is number && data.points >= 0;
+        && (!('category' in data) || (data.category is string && data.category.size() <= 150))
+        && (!('teacherName' in data) || (data.teacherName is string && data.teacherName.size() <= 150))
+        && (!('description' in data) || (data.description is string && data.description.size() <= 5000))
+        && data.points is number;
     }
 
     function isValidBehaviorType(data) {

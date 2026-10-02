@@ -660,13 +660,17 @@ export async function deleteClassConductConfigFromFirebase(className: string): P
 }
 
 export async function batchSaveIncidentsToFirebase(incidents: Incident[]): Promise<void> {
+  if (!incidents || incidents.length === 0) return;
   const path = COLLECTIONS.INCIDENTS;
   try {
-    const batch = writeBatch(db);
-    incidents.forEach((inc) => {
-      batch.set(doc(db, COLLECTIONS.INCIDENTS, inc.id), cleanForFirestore(inc));
-    });
-    await batch.commit();
+    for (let i = 0; i < incidents.length; i += 400) {
+      const batch = writeBatch(db);
+      const chunk = incidents.slice(i, i + 400);
+      chunk.forEach((inc) => {
+        batch.set(doc(db, COLLECTIONS.INCIDENTS, inc.id), cleanForFirestore(inc));
+      });
+      await batch.commit();
+    }
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
   }

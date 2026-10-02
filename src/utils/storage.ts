@@ -472,7 +472,6 @@ export function getStoredStudents(): ClassStudent[] {
   try {
     const raw = localStorage.getItem(STUDENTS_KEY);
     if (!raw) {
-      saveStoredStudents(INITIAL_STUDENTS);
       return INITIAL_STUDENTS;
     }
     return JSON.parse(raw);
@@ -496,35 +495,10 @@ export function saveStoredStudents(students: ClassStudent[]): void {
 export function getStoredPositives(): PositiveBehavior[] {
   try {
     const raw = localStorage.getItem(POSITIVES_KEY);
-    let deletedSet = new Set<string>();
-    try {
-      const rawDeleted = localStorage.getItem('aula_conductas_deleted_students_v1');
-      if (rawDeleted) {
-        deletedSet = new Set<string>(JSON.parse(rawDeleted));
-      }
-    } catch {}
-
-    const storedStudents = getStoredStudents();
-    const validStudentKeys = new Set(
-      storedStudents
-        .filter((s) => !deletedSet.has(s.id) && !deletedSet.has(`${s.className.toLowerCase()}__${s.name.trim().toLowerCase()}`))
-        .map((s) => `${s.className.trim().toLowerCase()}__${s.name.trim().toLowerCase()}`)
-    );
-
     if (!raw) {
-      const seeded = INITIAL_POSITIVES.filter((p) =>
-        validStudentKeys.has(`${p.studentGroup.trim().toLowerCase()}__${p.studentName.trim().toLowerCase()}`)
-      );
-      saveStoredPositives(seeded);
-      return seeded;
+      return INITIAL_POSITIVES;
     }
-    const parsed: PositiveBehavior[] = JSON.parse(raw);
-    return parsed.filter((p) => {
-      const key = `${p.studentGroup.trim().toLowerCase()}__${p.studentName.trim().toLowerCase()}`;
-      if (deletedSet.has(key)) return false;
-      if (validStudentKeys.size > 0 && !validStudentKeys.has(key)) return false;
-      return true;
-    });
+    return JSON.parse(raw);
   } catch (e) {
     console.error('Error reading positives from localStorage', e);
     return INITIAL_POSITIVES;
@@ -534,9 +508,6 @@ export function getStoredPositives(): PositiveBehavior[] {
 export function saveStoredPositives(positives: PositiveBehavior[]): void {
   try {
     localStorage.setItem(POSITIVES_KEY, JSON.stringify(positives));
-    positives.forEach((p) => {
-      savePositiveToFirebase(p).catch((err) => console.log('Firebase sync notice:', err));
-    });
   } catch (e) {
     console.error('Error saving positives to localStorage', e);
   }
@@ -547,7 +518,6 @@ export function getStoredClasses(): SchoolClass[] {
   try {
     const raw = localStorage.getItem(CLASSES_KEY);
     if (!raw) {
-      saveStoredClasses(INITIAL_CLASSES);
       return INITIAL_CLASSES;
     }
     return JSON.parse(raw);
@@ -612,40 +582,14 @@ export function getStoredIncidents(): Incident[] {
   try {
     const raw = localStorage.getItem(INCIDENTS_KEY);
     const tutorConfirmations = getStoredTutorConfirmations();
-    let deletedSet = new Set<string>();
-    try {
-      const rawDeleted = localStorage.getItem('aula_conductas_deleted_students_v1');
-      if (rawDeleted) {
-        deletedSet = new Set<string>(JSON.parse(rawDeleted));
-      }
-    } catch {}
-
-    const storedStudents = getStoredStudents();
-    const validStudentKeys = new Set(
-      storedStudents
-        .filter((s) => !deletedSet.has(s.id) && !deletedSet.has(`${s.className.toLowerCase()}__${s.name.trim().toLowerCase()}`))
-        .map((s) => `${s.className.trim().toLowerCase()}__${s.name.trim().toLowerCase()}`)
-    );
-
     if (!raw) {
-      const seeded = INITIAL_INCIDENTS
-        .filter((inc) => validStudentKeys.has(`${inc.studentGroup.trim().toLowerCase()}__${inc.studentName.trim().toLowerCase()}`))
-        .map((inc) => ({
-          ...inc,
-          tutorReadConfirmation: tutorConfirmations[inc.id] || inc.tutorReadConfirmation,
-        }));
-      saveIncidents(seeded);
-      return seeded;
+      return INITIAL_INCIDENTS.map((inc) => ({
+        ...inc,
+        tutorReadConfirmation: tutorConfirmations[inc.id] || inc.tutorReadConfirmation,
+      }));
     }
     const parsed: Incident[] = JSON.parse(raw);
-    const filtered = parsed.filter((inc) => {
-      const key = `${inc.studentGroup.trim().toLowerCase()}__${inc.studentName.trim().toLowerCase()}`;
-      if (deletedSet.has(key)) return false;
-      if (validStudentKeys.size > 0 && !validStudentKeys.has(key)) return false;
-      return true;
-    });
-
-    return filtered.map((inc) => ({
+    return parsed.map((inc) => ({
       ...inc,
       tutorReadConfirmation: tutorConfirmations[inc.id] || inc.tutorReadConfirmation,
     }));
@@ -658,7 +602,6 @@ export function getStoredIncidents(): Incident[] {
 export function saveIncidents(incidents: Incident[]): void {
   try {
     localStorage.setItem(INCIDENTS_KEY, JSON.stringify(incidents));
-    batchSaveIncidentsToFirebase(incidents).catch((err) => console.log('Firebase sync notice:', err));
   } catch (e) {
     console.error('Error saving incidents to localStorage', e);
   }

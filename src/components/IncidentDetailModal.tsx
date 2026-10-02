@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   PhoneCall,
   Save,
+  Trash2,
 } from 'lucide-react';
 import { Incident, IncidentStatus, UserProfile } from '../types';
 
@@ -19,6 +20,7 @@ interface IncidentDetailModalProps {
   incident: Incident | null;
   onClose: () => void;
   onUpdateIncident: (updated: Incident) => void;
+  onDeleteIncident?: (id: string) => void;
   currentUser: UserProfile;
   onOpenStudentProfile: (studentName: string) => void;
 }
@@ -27,10 +29,11 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
   incident,
   onClose,
   onUpdateIncident,
+  onDeleteIncident,
   currentUser,
   onOpenStudentProfile,
 }) => {
-  const [status, setStatus] = useState<IncidentStatus>(incident?.status || 'Pendiente');
+  const [status, setStatus] = useState<IncidentStatus>(incident?.status || 'Abierta');
   const [directivoNotes, setDirectivoNotes] = useState(incident?.directivoNotes || '');
   const [familyNotified, setFamilyNotified] = useState(incident?.familyNotified || false);
   const [immediateMeasure, setImmediateMeasure] = useState(incident?.immediateMeasure || '');
@@ -276,13 +279,31 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
 
         {/* Modal Footer (hidden in print) */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 bg-slate-50/80 rounded-b-2xl print:hidden">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
-          >
-            Cerrar sin guardar
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
+            >
+              Cerrar
+            </button>
+            {onDeleteIncident && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm('¿Estás seguro de que deseas eliminar este registro de conducta? Esta acción se guardará en la base de datos.')) {
+                    onDeleteIncident(incident.id);
+                    onClose();
+                  }
+                }}
+                className="px-3 py-2 text-xs font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer flex items-center gap-1.5"
+                title="Eliminar este parte de la base de datos"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Eliminar</span>
+              </button>
+            )}
+          </div>
 
           <button
             type="button"

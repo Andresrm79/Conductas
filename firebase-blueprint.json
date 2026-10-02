@@ -27,7 +27,7 @@
         "createdAt": { "type": "string", "maxLength": 50 },
         "updatedAt": { "type": "string", "maxLength": 50 }
       },
-      "required": ["id", "studentName", "studentGroup", "date", "description", "status", "severity", "teacherName"]
+      "required": ["id", "studentName", "studentGroup", "date"]
     },
     "SchoolClass": {
       "title": "SchoolClass",
@@ -60,7 +60,7 @@
         "negativePoints": { "type": "number" },
         "conductNotes": { "type": "string", "maxLength": 2000 }
       },
-      "required": ["id", "name", "className", "positivePoints", "negativePoints"]
+      "required": ["id", "name", "className"]
     },
     "PositiveBehavior": {
       "title": "PositiveBehavior",
@@ -77,7 +77,7 @@
         "points": { "type": "number" },
         "behaviorTypeId": { "type": "string", "maxLength": 128 }
       },
-      "required": ["id", "studentName", "studentGroup", "date", "category", "teacherName", "points"]
+      "required": ["id", "studentName", "studentGroup", "date", "points"]
     },
     "BehaviorType": {
       "title": "BehaviorType",
