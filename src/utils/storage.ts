@@ -623,7 +623,6 @@ export function getStoredProfiles(): UserProfile[] {
   } catch (e) {
     console.error('Error reading profiles from localStorage', e);
   }
-  saveStoredProfiles(INITIAL_PROFILES);
   return INITIAL_PROFILES;
 }
 
@@ -693,7 +692,6 @@ export function getStoredLateArrivals(): LateArrival[] {
       const seeded = INITIAL_LATE_ARRIVALS.filter((la) =>
         validStudentKeys.has(`${la.studentGroup.trim().toLowerCase()}__${la.studentName.trim().toLowerCase()}`)
       );
-      saveStoredLateArrivals(seeded);
       return seeded;
     }
     const parsed: LateArrival[] = JSON.parse(raw);
@@ -724,7 +722,6 @@ export function getStoredLateArrivalConfig(): LateArrivalConfig {
   try {
     const raw = localStorage.getItem(LATE_CONFIG_KEY);
     if (!raw) {
-      saveStoredLateArrivalConfig(DEFAULT_LATE_CONFIG);
       return DEFAULT_LATE_CONFIG;
     }
     return JSON.parse(raw);

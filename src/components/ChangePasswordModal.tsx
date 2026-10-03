@@ -34,7 +34,6 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
   const [showNewPass, setShowNewPass] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [resetSuccessMsg, setResetSuccessMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -43,7 +42,6 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
       setConfirmPassword('');
       setErrorMsg(null);
       setSuccessMsg(null);
-      setResetSuccessMsg(null);
       setShowCurrentPass(false);
       setShowNewPass(false);
     }
@@ -53,29 +51,29 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
 
   const isUsingGeneric = (currentUser.password || '1234') === '1234';
 
-  const handleSelfReset = () => {
-    if (onResetPassword) {
-      onResetPassword(currentUser.id);
-      setCurrentPasswordInput('1234');
-      setResetSuccessMsg('✓ Clave restablecida a la contraseña genérica 1234. Ya puedes definir tu nueva clave.');
-      setErrorMsg(null);
-    }
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
 
-    const actualExpectedPass = currentUser.password || '1234';
+    const actualExpectedPass = (currentUser.password || '1234').trim();
 
     // Verify current password
     if (currentPasswordInput.trim() !== actualExpectedPass) {
-      setErrorMsg('La contraseña actual introducida no es correcta.');
+      setErrorMsg(
+        isUsingGeneric
+          ? 'La contraseña actual no es correcta. Recuerda que tu clave genérica inicial es 1234.'
+          : 'La contraseña actual introducida no es correcta.'
+      );
       return;
     }
 
     if (newPassword.trim().length < 3) {
       setErrorMsg('La nueva contraseña debe tener al menos 3 caracteres.');
+      return;
+    }
+
+    if (newPassword.trim() === '1234') {
+      setErrorMsg('Por favor, elige una contraseña personal diferente a la clave genérica inicial (1234).');
       return;
     }
 
@@ -85,7 +83,7 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
     }
 
     onSaveNewPassword(currentUser.id, newPassword.trim());
-    setSuccessMsg('¡Contraseña actualizada correctamente!');
+    setSuccessMsg('¡Contraseña actualizada correctamente! A partir de ahora accederás con tu nueva clave.');
     setTimeout(() => {
       onClose();
     }, 1200);
@@ -147,18 +145,11 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
             </div>
           )}
 
-          {resetSuccessMsg && (
-            <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl flex items-center gap-2.5 text-xs text-purple-900 animate-in fade-in">
-              <CheckCircle2 className="w-4 h-4 text-purple-600 shrink-0" />
-              <span>{resetSuccessMsg}</span>
-            </div>
-          )}
-
-          {isUsingGeneric && !resetSuccessMsg && (
+          {isUsingGeneric && (
             <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2">
               <span className="font-bold text-amber-700">Aviso:</span>
               <p className="text-[11px] leading-relaxed">
-                Actualmente tienes asignada la <strong>clave genérica (1234)</strong>. Introduce <strong>1234</strong> como contraseña actual y crea tu clave personal a continuación.
+                Actualmente tienes asignada la <strong>clave genérica inicial (1234)</strong>. Introduce <strong>1234</strong> como contraseña actual y crea tu contraseña personal a continuación.
               </p>
             </div>
           )}
@@ -166,20 +157,9 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Current password */}
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  Contraseña Actual
-                </label>
-                {onResetPassword && (
-                  <button
-                    type="button"
-                    onClick={handleSelfReset}
-                    className="text-[11px] font-bold text-purple-700 hover:text-purple-900 hover:underline cursor-pointer"
-                  >
-                    ¿Olvidada? Restablecer a 1234
-                  </button>
-                )}
-              </div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Contraseña Actual
+              </label>
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input

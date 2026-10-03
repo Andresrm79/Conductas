@@ -61,8 +61,8 @@ export const ClassPasswordModal: React.FC<ClassPasswordModalProps> = ({
   // Check authorization by Dirección for this user
   const isAuthorized = !currentUser || isAll ? true : isUserAuthorizedForClass(currentUser, className);
 
-  const userExpectedPassword = currentUser?.password || '1234';
-  const classExpectedPassword = !isAll ? targetClass.password : DIRECTIVO_GLOBAL_PASSWORD;
+  const userExpectedPassword = (currentUser?.password || '1234').trim();
+  const customClassPassword = !isAll && targetClass?.password && targetClass.password !== '1234' ? targetClass.password.trim() : null;
 
   const handleValidate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,27 +77,25 @@ export const ClassPasswordModal: React.FC<ClassPasswordModalProps> = ({
 
     const cleanInput = password.trim();
 
-    // Check user's personal password, class password, master directivo password, or universal 1234
+    // Check user's personal password or custom class password (if defined by Dirección/tutor)
     const isCorrect =
       cleanInput === userExpectedPassword ||
-      cleanInput === classExpectedPassword ||
-      cleanInput === DIRECTIVO_GLOBAL_PASSWORD ||
-      cleanInput === '1234' ||
-      cleanInput === 'admin';
+      (customClassPassword !== null && cleanInput === customClassPassword);
 
     if (isCorrect) {
       setErrorMsg(null);
       onSuccess(targetClass);
     } else {
-      setErrorMsg(
-        'Contraseña incorrecta. Introduce tu clave personal de usuario o solicita a Dirección que la restablezca a 1234.'
-      );
+      if (cleanInput === '1234' && userExpectedPassword !== '1234') {
+        setErrorMsg(
+          'La clave genérica 1234 ya no es válida. Has configurado una clave personal; introduce tu nueva clave para entrar al aula.'
+        );
+      } else {
+        setErrorMsg(
+          'Contraseña incorrecta. Introduce tu clave personal de acceso o solicita a Dirección que la restablezca si la has olvidado.'
+        );
+      }
     }
-  };
-
-  const handleQuickFill = () => {
-    setPassword(userExpectedPassword || '1234');
-    setErrorMsg(null);
   };
 
   const handleSaveNewPassword = (e: React.FormEvent) => {
@@ -229,23 +227,11 @@ export const ClassPasswordModal: React.FC<ClassPasswordModalProps> = ({
                 </div>
               </div>
 
-              {/* Convenience Helper Card */}
-              <div className="p-3 bg-amber-50/80 border border-amber-200/80 rounded-xl flex items-center justify-between gap-3 text-xs">
-                <div className="space-y-0.5">
-                  <span className="font-semibold text-amber-900 block">
-                    Clave demo / reseteo: <strong className="font-mono text-slate-900">{userExpectedPassword || '1234'}</strong>
-                  </span>
-                  <p className="text-[11px] text-amber-700">
-                    Si la olvidas, Dirección puede restablecerla a 1234.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleQuickFill}
-                  className="px-2.5 py-1.5 bg-amber-200 hover:bg-amber-300 text-amber-900 font-bold text-[11px] rounded-lg transition-colors cursor-pointer shrink-0"
-                >
-                  Autocompletar
-                </button>
+              {/* Security info */}
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600">
+                <p className="text-[11px] leading-relaxed">
+                  🔒 El acceso a esta aula se realiza con tu <strong>contraseña personal</strong>. Si aún utilizas la clave genérica inicial (1234), puedes cambiarla tras acceder mediante el botón <em>«Cambiar mi clave»</em>.
+                </p>
               </div>
 
               {/* Actions */}

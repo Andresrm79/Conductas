@@ -1,42 +1,56 @@
 import React, { useState } from 'react';
-import { Lock, ShieldAlert, KeyRound, X, CheckCircle2, UserCheck } from 'lucide-react';
+import { Lock, ShieldAlert, KeyRound, X } from 'lucide-react';
 import { UserProfile } from '../types';
-import { DIRECTIVO_GLOBAL_PASSWORD, INITIAL_PROFILES } from '../data/mockData';
+import { INITIAL_PROFILES } from '../data/mockData';
 
 interface DirectivoAuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAuthenticated: (directivoUser: UserProfile) => void;
+  onAuthenticated?: (directivoUser: UserProfile) => void;
+  onSuccess?: (directivoUser: UserProfile) => void;
+  directivoProfile?: UserProfile;
+  profiles?: UserProfile[];
 }
 
 export const DirectivoAuthModal: React.FC<DirectivoAuthModalProps> = ({
   isOpen,
   onClose,
   onAuthenticated,
+  onSuccess,
+  directivoProfile: passedDirectivoProfile,
+  profiles,
 }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
+  const callback = onAuthenticated || onSuccess || (() => {});
+
   const directivoProfile =
-    INITIAL_PROFILES.find((p) => p.role === 'Directivo') || INITIAL_PROFILES[3];
+    passedDirectivoProfile ||
+    (profiles && profiles.find((p) => p.role === 'Directivo')) ||
+    INITIAL_PROFILES.find((p) => p.role === 'Directivo') ||
+    INITIAL_PROFILES[3];
+
+  const expectedPass = (directivoProfile.password || '1234').trim();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === DIRECTIVO_GLOBAL_PASSWORD || password === '1234') {
+    const clean = password.trim();
+    if (clean === expectedPass) {
       setError(null);
       setPassword('');
-      onAuthenticated(directivoProfile);
+      callback(directivoProfile);
     } else {
-      setError('Contraseña incorrecta. (Clave por defecto de dirección: 1234)');
+      if (clean === '1234' && expectedPass !== '1234') {
+        setError(
+          'La clave genérica 1234 ya no es válida para Dirección. Introduce la clave personalizada.'
+        );
+      } else {
+        setError('Contraseña incorrecta para el perfil de Dirección.');
+      }
     }
-  };
-
-  const handleDirectAccess = () => {
-    setError(null);
-    setPassword('');
-    onAuthenticated(directivoProfile);
   };
 
   return (
@@ -95,7 +109,11 @@ export const DirectivoAuthModal: React.FC<DirectivoAuthModalProps> = ({
                   setPassword(e.target.value);
                   setError(null);
                 }}
-                placeholder="Clave (por defecto: 1234)"
+                placeholder={
+                  expectedPass === '1234'
+                    ? 'Clave de Dirección (por defecto: 1234)'
+                    : 'Introduce tu clave personal de Dirección...'
+                }
                 autoFocus
                 className="w-full pl-9 pr-4 py-2.5 text-sm rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-slate-900 font-mono"
               />
@@ -113,13 +131,9 @@ export const DirectivoAuthModal: React.FC<DirectivoAuthModalProps> = ({
                 <p className="text-[11px] text-slate-500">Jefatura de Estudios / Dirección</p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={handleDirectAccess}
-              className="text-[11px] font-bold text-purple-700 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 px-2.5 py-1 rounded-lg border border-purple-200 transition-colors cursor-pointer"
-            >
-              Acceso Rápido
-            </button>
+            <span className="text-[10px] font-bold text-slate-500 bg-slate-200/70 px-2 py-0.5 rounded">
+              {expectedPass === '1234' ? 'Clave Inicial (1234)' : 'Clave Personalizada'}
+            </span>
           </div>
 
           <div className="flex items-center justify-end gap-2 pt-2">

@@ -684,9 +684,9 @@ export const ClassSelectionScreen: React.FC<ClassSelectionScreenProps> = ({
         <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-4 text-xs text-amber-900 flex items-start gap-3">
           <Info className="w-4 h-4 text-amber-700 mt-0.5 shrink-0" />
           <div className="space-y-1">
-            <span className="font-bold block">Información sobre la seguridad de las aulas</span>
+            <span className="font-bold block">Seguridad y acceso a las aulas</span>
             <p className="text-amber-800 text-[11px] leading-relaxed">
-              La contraseña por defecto para todas las clases y para la vista global es <code className="font-mono font-bold bg-amber-200/80 px-1.5 py-0.5 rounded text-slate-900">1234</code>. Si un tutor o equipo directivo desea personalizar la clave de su grupo, puede hacerlo desde la ventana de acceso pulsando en <em>"¿Deseas personalizar la contraseña de esta clase?"</em>.
+              El acceso a las aulas autorizadas se realiza con tu <strong>clave personal</strong>. Si tienes asignada la clave genérica inicial (<code className="font-mono font-bold bg-amber-200/80 px-1.5 py-0.5 rounded text-slate-900">1234</code>), puedes cambiarla en cualquier momento desde el botón superior <strong>«Cambiar Clave»</strong>. Una vez guardada tu nueva clave personal, la clave genérica quedará desactivada para tu cuenta.
             </p>
           </div>
         </div>

@@ -255,30 +255,20 @@ export default function App() {
     unsubs.push(
       subscribeToProfiles((firebaseData) => {
         if (firebaseData && firebaseData.length > 0) {
-          // Check if local cache has any profiles created previously that aren't yet in Firestore
-          const localProfiles = getStoredProfiles();
-          const missingInCloud = localProfiles.filter(
-            (lp) => !firebaseData.some((fp) => fp.id === lp.id)
-          );
+          setProfiles(firebaseData);
+          try {
+            localStorage.setItem('aula_conductas_profiles_v2', JSON.stringify(firebaseData));
+          } catch {}
 
-          if (missingInCloud.length > 0) {
-            // Upload missing profiles to Firestore so they are never lost
-            missingInCloud.forEach((p) => {
-              saveProfileToFirebase(p).catch((err) =>
-                console.warn('Syncing missing local profile to Firebase:', err)
-              );
-            });
-            const merged = [...firebaseData, ...missingInCloud];
-            setProfiles(merged);
-            try {
-              localStorage.setItem('aula_conductas_profiles_v2', JSON.stringify(merged));
-            } catch {}
-          } else {
-            setProfiles(firebaseData);
-            try {
-              localStorage.setItem('aula_conductas_profiles_v2', JSON.stringify(firebaseData));
-            } catch {}
-          }
+          // Ensure currentUser has the latest credentials and attributes from Firebase
+          setCurrentUser((prevUser) => {
+            const updated = firebaseData.find((p) => p.id === prevUser.id);
+            if (updated) {
+              saveStoredUser(updated);
+              return updated;
+            }
+            return prevUser;
+          });
         }
       })
     );
@@ -1479,7 +1469,7 @@ export default function App() {
           isOpen={isDirectivoAuthModalOpen}
           onClose={() => setIsDirectivoAuthModalOpen(false)}
           onSuccess={handleDirectivoAuthenticated}
-          profiles={INITIAL_PROFILES}
+          profiles={profiles}
         />
 
         {/* Excel Import Modal can also be accessed from the initial screen */}
@@ -1674,7 +1664,7 @@ export default function App() {
         isOpen={isDirectivoAuthModalOpen}
         onClose={() => setIsDirectivoAuthModalOpen(false)}
         onSuccess={handleDirectivoAuthenticated}
-        profiles={INITIAL_PROFILES}
+        profiles={profiles}
       />
 
       {/* Modal 1: New Conduct Registration */}

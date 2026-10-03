@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   AlertCircle,
   ArrowRight,
-  RotateCcw,
   Building2,
   Users,
   GraduationCap,
@@ -20,14 +19,12 @@ import {
   LogOut,
 } from 'lucide-react';
 import { UserProfile } from '../types';
-import { DIRECTIVO_GLOBAL_PASSWORD } from '../data/mockData';
 import { User } from 'firebase/auth';
 
 interface AppLoginScreenProps {
   profiles: UserProfile[];
   onLoginSuccess: (user: UserProfile) => void;
   onResetUserPassword: (userId: string) => void;
-  onUpdateUserPassword: (userId: string, newPass: string) => void;
   firebaseUser?: User | null;
   onLoginWithGoogle?: () => void;
   onLogoutGoogle?: () => void;
@@ -37,7 +34,6 @@ export const AppLoginScreen: React.FC<AppLoginScreenProps> = ({
   profiles,
   onLoginSuccess,
   onResetUserPassword,
-  onUpdateUserPassword,
   firebaseUser,
   onLoginWithGoogle,
   onLogoutGoogle,
@@ -48,20 +44,13 @@ export const AppLoginScreen: React.FC<AppLoginScreenProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Recovery & change password view states
-  const [isRecoveryOpen, setIsRecoveryOpen] = useState(false);
-  const [isChangePassOpen, setIsChangePassOpen] = useState(false);
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmNewPassword, setConfirmNewPassword] = useState('');
-
   const selectedUser = profiles.find((p) => p.id === selectedUserId) || profiles[0];
+  const isUserUsingGeneric = (selectedUser?.password || '1234') === '1234';
 
   useEffect(() => {
     setPassword('');
     setErrorMsg(null);
     setSuccessMsg(null);
-    setIsRecoveryOpen(false);
-    setIsChangePassOpen(false);
   }, [selectedUserId]);
 
   const handleLogin = (e: React.FormEvent) => {
@@ -71,54 +60,25 @@ export const AppLoginScreen: React.FC<AppLoginScreenProps> = ({
     if (!selectedUser) return;
 
     const cleanInput = password.trim();
-    const expectedPassword = selectedUser.password || '1234';
-    const isGeneric = expectedPassword === '1234';
+    const expectedPassword = (selectedUser.password || '1234').trim();
 
-    const isValid =
-      cleanInput === expectedPassword ||
-      (isGeneric && cleanInput === '1234') ||
-      cleanInput === DIRECTIVO_GLOBAL_PASSWORD ||
-      cleanInput === 'admin';
+    // Strict validation: must match user's actual password. No bypasses.
+    const isValid = cleanInput === expectedPassword;
 
     if (isValid) {
       setErrorMsg(null);
       onLoginSuccess(selectedUser);
     } else {
-      setErrorMsg(
-        `Clave incorrecta para ${selectedUser.name}. Si no recuerdas la contraseña, puedes restablecerla con "¿Has olvidado tu clave?".`
-      );
+      if (cleanInput === '1234' && expectedPassword !== '1234') {
+        setErrorMsg(
+          `La clave genérica 1234 ya no es válida para ${selectedUser.name}. Esta cuenta ya tiene una clave personal configurada; introduce tu nueva clave para acceder.`
+        );
+      } else {
+        setErrorMsg(
+          `Contraseña incorrecta para ${selectedUser.name}. Introduce la clave correspondiente a tu cuenta.`
+        );
+      }
     }
-  };
-
-  const handleExecuteReset = () => {
-    if (!selectedUser) return;
-    onResetUserPassword(selectedUser.id);
-    setPassword('1234');
-    setSuccessMsg(`✓ Clave restablecida a la contraseña genérica inicial (1234). Ya puedes acceder.`);
-    setErrorMsg(null);
-    setIsRecoveryOpen(false);
-  };
-
-  const handleChangePasswordSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg(null);
-
-    if (newPassword.trim().length < 3) {
-      setErrorMsg('La nueva clave debe tener al menos 3 caracteres.');
-      return;
-    }
-
-    if (newPassword.trim() !== confirmNewPassword.trim()) {
-      setErrorMsg('Las contraseñas no coinciden.');
-      return;
-    }
-
-    onUpdateUserPassword(selectedUser.id, newPassword.trim());
-    setPassword(newPassword.trim());
-    setSuccessMsg('✓ Nueva contraseña guardada. Ya puedes acceder con ella.');
-    setIsChangePassOpen(false);
-    setNewPassword('');
-    setConfirmNewPassword('');
   };
 
   const directivos = profiles.filter((p) => p.role === 'Directivo' || p.role === 'Orientador');
@@ -276,13 +236,15 @@ export const AppLoginScreen: React.FC<AppLoginScreenProps> = ({
                 <label htmlFor="input-login-password" className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
                   Clave de Acceso *
                 </label>
-                <button
-                  type="button"
-                  onClick={() => setIsRecoveryOpen(!isRecoveryOpen)}
-                  className="text-xs font-semibold text-purple-400 hover:text-purple-300 transition-colors cursor-pointer"
-                >
-                  ¿Has olvidado tu clave?
-                </button>
+                {isUserUsingGeneric ? (
+                  <span className="text-[11px] font-semibold text-amber-400">
+                    Clave inicial: 1234
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-semibold text-purple-400">
+                    Clave personal requerida
+                  </span>
+                )}
               </div>
 
               <div className="relative">
@@ -294,7 +256,11 @@ export const AppLoginScreen: React.FC<AppLoginScreenProps> = ({
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Introduce tu clave (ej. 1234)"
+                  placeholder={
+                    isUserUsingGeneric
+                      ? 'Introduce la clave genérica (1234)'
+                      : 'Introduce tu clave personal de acceso'
+                  }
                   autoFocus
                   required
                   className="w-full text-sm font-medium bg-slate-950 border border-slate-700 rounded-xl pl-10 pr-11 py-2.5 text-white placeholder:text-slate-600 focus:outline-hidden focus:ring-2 focus:ring-purple-500 shadow-xs"
@@ -307,6 +273,19 @@ export const AppLoginScreen: React.FC<AppLoginScreenProps> = ({
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
+              </div>
+
+              {/* Status helper under input */}
+              <div className="text-[11px] text-slate-400 leading-relaxed pt-0.5">
+                {isUserUsingGeneric ? (
+                  <p>
+                    💡 Esta cuenta aún tiene la <strong>clave genérica inicial (1234)</strong>. Una vez que accedas, podrás cambiarla por tu clave personal.
+                  </p>
+                ) : (
+                  <p className="text-purple-300">
+                    🔒 Esta cuenta tiene una <strong>clave personal activa</strong>. El acceso solo se permite con la nueva clave.
+                  </p>
+                )}
               </div>
             </div>
 
@@ -325,78 +304,6 @@ export const AppLoginScreen: React.FC<AppLoginScreenProps> = ({
               </div>
             )}
 
-            {/* Recovery Box */}
-            {isRecoveryOpen && (
-              <div className="p-4 rounded-2xl bg-slate-950 border border-amber-800/50 space-y-3 animate-in fade-in slide-in-from-top-2 duration-150">
-                <div className="flex items-center gap-2 text-amber-400 text-xs font-bold">
-                  <RotateCcw className="w-4 h-4" />
-                  <span>Recuperación de Contraseña</span>
-                </div>
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  ¿Has olvidado tu clave para <strong className="text-white">{selectedUser.name}</strong>? Puedes restablecerla inmediatamente a la clave genérica inicial (<span className="text-amber-400 font-mono font-bold">1234</span>).
-                </p>
-                <div className="flex items-center gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={handleExecuteReset}
-                    className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Restablecer a 1234</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsRecoveryOpen(false)}
-                    className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition-colors cursor-pointer"
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Change Password Inline Option */}
-            {isChangePassOpen && (
-              <div className="p-4 rounded-2xl bg-slate-950 border border-purple-800/50 space-y-3 animate-in fade-in slide-in-from-top-2 duration-150">
-                <div className="flex items-center gap-2 text-purple-300 text-xs font-bold">
-                  <KeyRound className="w-4 h-4" />
-                  <span>Sustituir Clave Genérica para {selectedUser.name}</span>
-                </div>
-                <div className="space-y-2">
-                  <input
-                    type="password"
-                    placeholder="Nueva contraseña (mínimo 3 caracteres)"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full text-xs bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white placeholder:text-slate-500 focus:outline-hidden focus:ring-2 focus:ring-purple-500"
-                  />
-                  <input
-                    type="password"
-                    placeholder="Confirmar nueva contraseña"
-                    value={confirmNewPassword}
-                    onChange={(e) => setConfirmNewPassword(e.target.value)}
-                    className="w-full text-xs bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white placeholder:text-slate-500 focus:outline-hidden focus:ring-2 focus:ring-purple-500"
-                  />
-                </div>
-                <div className="flex items-center gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={handleChangePasswordSubmit}
-                    className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition-colors cursor-pointer"
-                  >
-                    Guardar Nueva Clave
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsChangePassOpen(false)}
-                    className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition-colors cursor-pointer"
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </div>
-            )}
-
             {/* Submit Button */}
             <div className="pt-2">
               <button
@@ -410,28 +317,14 @@ export const AppLoginScreen: React.FC<AppLoginScreenProps> = ({
               </button>
             </div>
 
-            {/* Quick Fill & Change Password Links */}
-            <div className="pt-2 flex items-center justify-between text-xs text-slate-400 border-t border-slate-800/80">
-              <button
-                type="button"
-                onClick={() => {
-                  setPassword(selectedUser.password || '1234');
-                  setErrorMsg(null);
-                }}
-                className="text-slate-400 hover:text-amber-400 transition-colors cursor-pointer flex items-center gap-1 font-medium"
-                title="Rellenar automáticamente la clave genérica (1234) para demostración"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>Rellenar clave genérica (1234)</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsChangePassOpen(!isChangePassOpen)}
-                className="text-slate-400 hover:text-purple-300 transition-colors cursor-pointer font-medium"
-              >
-                Personalizar clave
-              </button>
+            {/* Notice about password policy */}
+            <div className="pt-3 text-center border-t border-slate-800/80 space-y-1">
+              <p className="text-[11px] text-slate-300">
+                🔑 <strong>Cambio de clave:</strong> Se realiza exclusivamente una vez que hayas accedido a tu cuenta.
+              </p>
+              <p className="text-[10px] text-slate-500">
+                ¿Has olvidado tu clave personal? Contacta con Jefatura de Estudios / Dirección para su reseteo a 1234.
+              </p>
             </div>
           </form>
         </div>
