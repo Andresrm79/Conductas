@@ -3,6 +3,46 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      // Allow browser extensions and interceptors to safely override window.fetch
+      (function() {
+        try {
+          var _currentFetch = window.fetch;
+          var patch = function(target) {
+            try {
+              Object.defineProperty(target, 'fetch', {
+                get: function() {
+                  return _currentFetch;
+                },
+                set: function(val) {
+                  _currentFetch = val;
+                },
+                configurable: true,
+                enumerable: true
+              });
+            } catch (e) {}
+          };
+          patch(window);
+          if (typeof Window !== 'undefined' && Window.prototype) {
+            patch(Window.prototype);
+          }
+        } catch (e) {}
+
+        // Suppress unhandled extension injection errors
+        window.addEventListener('error', function(event) {
+          if (
+            event &&
+            (
+              (event.message && event.message.indexOf('Cannot set property fetch') !== -1) ||
+              (event.filename && event.filename.indexOf('chrome-extension://') !== -1)
+            )
+          ) {
+            if (typeof event.preventDefault === 'function') event.preventDefault();
+            if (typeof event.stopPropagation === 'function') event.stopPropagation();
+          }
+        }, true);
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234f46e5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/></svg>" />
     <title>Remix Gestión de Conductas Disruptivas</title>
     <meta name="description" content="Sistema integral para registro, análisis y seguimiento de incidencias y conductas disruptivas en el aula para profesores y equipo directivo, con soporte para importar y exportar hojas Excel." />
