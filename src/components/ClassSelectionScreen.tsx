@@ -622,7 +622,7 @@ export const ClassSelectionScreen: React.FC<ClassSelectionScreenProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      if (isAuthorized) {
+                      if (isAuthorized || isDirectivo) {
                         onClassUnlocked(cls);
                       } else {
                         setTargetClassForPassword(cls);

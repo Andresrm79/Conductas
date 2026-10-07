@@ -42,6 +42,7 @@ interface DirectivoHeaderProps {
   onOpenLateConfig?: () => void;
   onExportExcel: () => void;
   onExitDirectivo: () => void;
+  onOpenClassApp?: (className: string) => void;
   totalDisruptivas?: number;
   totalIncidentsCount?: number;
   totalPositivas?: number;
@@ -65,11 +66,15 @@ export const DirectivoHeader: React.FC<DirectivoHeaderProps> = ({
   onOpenLateConfig,
   onExportExcel,
   onExitDirectivo,
+  onOpenClassApp,
 }) => {
   const currentTab = activeNavTab || activeTab || 'seguimiento_aula';
   const handleSelectTab = onSelectNavTab || setActiveTab || (() => {});
   const safeClassesList = classesList || [];
   const handleSelectClassFilter = onSelectClassFilter || (() => {});
+  const [selectedQuickClass, setSelectedQuickClass] = React.useState<string>(
+    safeClassesList[0] || '1º ESO A'
+  );
 
   return (
     <header className="bg-slate-900 border-b border-slate-800 text-white sticky top-0 z-30 shadow-md">
@@ -307,6 +312,41 @@ export const DirectivoHeader: React.FC<DirectivoHeaderProps> = ({
               </span>
             </button>
           </nav>
+
+          {/* Direct Classroom Access from Dirección */}
+          {onOpenClassApp && safeClassesList.length > 0 && (
+            <div className="flex items-center gap-2 bg-slate-800/90 border border-slate-700 p-1.5 rounded-xl shadow-2xs self-start md:self-auto shrink-0">
+              <Building2 className="w-4 h-4 text-purple-400 shrink-0 ml-1" />
+              <label htmlFor="select-directivo-quick-class" className="sr-only">
+                Seleccionar aula
+              </label>
+              <select
+                id="select-directivo-quick-class"
+                value={selectedQuickClass}
+                onChange={(e) => {
+                  setSelectedQuickClass(e.target.value);
+                  handleSelectClassFilter(e.target.value);
+                }}
+                className="bg-slate-900 text-white text-xs font-bold px-2 py-1.5 rounded-lg border border-slate-700 focus:outline-hidden focus:border-purple-500 cursor-pointer"
+              >
+                {safeClassesList.map((c) => (
+                  <option key={c} value={c}>
+                    Aula {c}
+                  </option>
+                ))}
+              </select>
+              <button
+                id="btn-directivo-enter-class"
+                type="button"
+                onClick={() => onOpenClassApp(selectedQuickClass || safeClassesList[0])}
+                className="flex items-center gap-1 px-2.5 py-1.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 text-xs font-black rounded-lg transition-all cursor-pointer shadow-xs active:scale-95 whitespace-nowrap"
+                title={`Acceder directamente al Estado y Convivencia General del Aula ${selectedQuickClass || safeClassesList[0]}`}
+              >
+                <span>Acceder al Aula</span>
+                <DoorOpen className="w-3.5 h-3.5 text-slate-950" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>

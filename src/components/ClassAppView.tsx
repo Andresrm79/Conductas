@@ -65,6 +65,7 @@ import {
   getClassConductConfig,
   saveClassConductConfig,
   resetClassConductConfigToDefault,
+  safeStorage,
 } from '../utils/storage';
 
 interface ClassAppViewProps {
@@ -79,6 +80,7 @@ interface ClassAppViewProps {
   onUpdateBehaviorType?: (type: BehaviorType) => void;
   onDeleteBehaviorType?: (id: string) => void;
   onChangeClass: () => void;
+  onBackToDirectivo?: () => void;
   onSelectIncident: (incident: Incident) => void;
   onOpenStudentProfile: (studentName: string) => void;
   onOpenNewIncident: (studentName?: string) => void;
@@ -101,6 +103,7 @@ export const ClassAppView: React.FC<ClassAppViewProps> = ({
   onUpdateBehaviorType,
   onDeleteBehaviorType,
   onChangeClass,
+  onBackToDirectivo,
   onSelectIncident,
   onOpenStudentProfile,
   onOpenNewIncident,
@@ -159,7 +162,7 @@ export const ClassAppView: React.FC<ClassAppViewProps> = ({
   const classStudents = useMemo(() => {
     let deletedSet = new Set<string>();
     try {
-      const rawDeleted = localStorage.getItem('aula_conductas_deleted_students_v1');
+      const rawDeleted = safeStorage.getItem('aula_conductas_deleted_students_v1');
       if (rawDeleted) {
         deletedSet = new Set<string>(JSON.parse(rawDeleted));
       }
@@ -478,14 +481,27 @@ export const ClassAppView: React.FC<ClassAppViewProps> = ({
   return (
     <div className="w-full flex flex-col items-center">
       {/* Top Controls: Return to classes + View mode switcher + Excel export */}
-      <div className="w-full max-w-5xl mb-4 flex items-center justify-between px-2">
-        <button
-          onClick={onChangeClass}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer"
-        >
-          <ArrowLeft className="w-4 h-4 text-slate-500" />
-          <span>Portal de Clases</span>
-        </button>
+      <div className="w-full max-w-5xl mb-3 flex flex-wrap items-center justify-between px-2 gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {currentUser.role === 'Directivo' && onBackToDirectivo && (
+            <button
+              onClick={onBackToDirectivo}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-xs font-bold text-white transition-all shadow-2xs cursor-pointer active:scale-95"
+              title="Volver al panel general de Dirección"
+            >
+              <ShieldAlert className="w-4 h-4 text-amber-300" />
+              <span>← Panel de Dirección</span>
+            </button>
+          )}
+
+          <button
+            onClick={onChangeClass}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4 text-slate-500" />
+            <span>Portal de Clases</span>
+          </button>
+        </div>
 
         <div className="flex items-center gap-2">
           {/* View frame switcher */}
@@ -522,6 +538,38 @@ export const ClassAppView: React.FC<ClassAppViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Directivo Supervision Banner */}
+      {currentUser.role === 'Directivo' && (
+        <div className="w-full max-w-5xl mb-3 bg-purple-900 text-white rounded-2xl p-3.5 shadow-md border border-purple-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-purple-800 border border-purple-600 flex items-center justify-center shrink-0">
+              <ShieldAlert className="w-5 h-5 text-amber-300" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-black uppercase tracking-wider bg-purple-800 text-purple-200 px-2 py-0.5 rounded-md border border-purple-600">
+                  Acceso de Dirección
+                </span>
+                <span className="text-xs font-bold text-white">
+                  Supervisando: {schoolClass.name}
+                </span>
+              </div>
+              <p className="text-xs text-purple-200 mt-0.5">
+                Acceso completo al <strong>Estado y Convivencia General del Aula</strong>, alumnado, incidencias y baremo.
+              </p>
+            </div>
+          </div>
+          {onBackToDirectivo && (
+            <button
+              onClick={onBackToDirectivo}
+              className="px-3.5 py-1.5 bg-white text-purple-950 hover:bg-purple-50 rounded-xl text-xs font-black shrink-0 transition-colors cursor-pointer shadow-xs"
+            >
+              ← Volver al Panel Directivo
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Main Container */}
       <div

@@ -15,7 +15,7 @@ import {
   COMMON_SUBJECTS,
   COMMON_TIME_SLOTS,
 } from '../data/mockData';
-import { getClassConductConfig, getStoredBehaviorTypes, isUserAuthorizedForClass } from '../utils/storage';
+import { getClassConductConfig, getStoredBehaviorTypes, isUserAuthorizedForClass, safeStorage } from '../utils/storage';
 
 export type ConductClassification = 'Disruptiva' | 'Positiva';
 
@@ -99,7 +99,7 @@ export const NewIncidentModal: React.FC<NewIncidentModalProps> = ({
   const classStudentsList = useMemo(() => {
     let deletedSet = new Set<string>();
     try {
-      const rawDeleted = localStorage.getItem('aula_conductas_deleted_students_v1');
+      const rawDeleted = safeStorage.getItem('aula_conductas_deleted_students_v1');
       if (rawDeleted) {
         deletedSet = new Set<string>(JSON.parse(rawDeleted));
       }

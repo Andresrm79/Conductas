@@ -55,6 +55,7 @@ import {
   updateBehaviorTypeEverywhere,
   addStoredBehaviorType,
   deleteStoredBehaviorType,
+  safeStorage,
 } from './utils/storage';
 import { exportIncidentsToExcel } from './utils/excelHelper';
 import { INITIAL_PROFILES, DIRECTIVO_GLOBAL_PASSWORD } from './data/mockData';
@@ -189,7 +190,7 @@ export default function App() {
           setIncidents(data);
           setHasLoadedIncidents(true);
           try {
-            localStorage.setItem('aula_conductas_incidencias_v1', JSON.stringify(data));
+            safeStorage.setItem('aula_conductas_incidencias_v1', JSON.stringify(data));
           } catch {}
         }
       })
@@ -200,7 +201,7 @@ export default function App() {
         if (data && data.length > 0) {
           setClasses(data);
           try {
-            localStorage.setItem('aula_conductas_classes_v1', JSON.stringify(data));
+            safeStorage.setItem('aula_conductas_classes_v1', JSON.stringify(data));
           } catch {}
         }
       })
@@ -212,7 +213,7 @@ export default function App() {
           setStudents(data);
           setHasLoadedStudents(true);
           try {
-            localStorage.setItem('aula_conductas_students_v1', JSON.stringify(data));
+            safeStorage.setItem('aula_conductas_students_v1', JSON.stringify(data));
           } catch {}
         }
       })
@@ -223,7 +224,7 @@ export default function App() {
         if (Array.isArray(data)) {
           setPositives(data);
           try {
-            localStorage.setItem('aula_conductas_positives_v1', JSON.stringify(data));
+            safeStorage.setItem('aula_conductas_positives_v1', JSON.stringify(data));
           } catch {}
         }
       })
@@ -246,7 +247,7 @@ export default function App() {
           const merged = [...data, ...missingInCloud];
           setBehaviorTypes(merged);
           try {
-            localStorage.setItem('aula_conductas_behavior_types_v1', JSON.stringify(merged));
+            safeStorage.setItem('aula_conductas_behavior_types_v1', JSON.stringify(merged));
           } catch {}
         }
       })
@@ -257,7 +258,7 @@ export default function App() {
         if (firebaseData && firebaseData.length > 0) {
           setProfiles(firebaseData);
           try {
-            localStorage.setItem('aula_conductas_profiles_v2', JSON.stringify(firebaseData));
+            safeStorage.setItem('aula_conductas_profiles_v2', JSON.stringify(firebaseData));
           } catch {}
 
           // Ensure currentUser has the latest credentials and attributes from Firebase
@@ -278,7 +279,7 @@ export default function App() {
         if (Array.isArray(data)) {
           setLateArrivals(data);
           try {
-            localStorage.setItem('aula_conductas_late_arrivals_v1', JSON.stringify(data));
+            safeStorage.setItem('aula_conductas_late_arrivals_v1', JSON.stringify(data));
           } catch {}
         }
       })
@@ -289,7 +290,7 @@ export default function App() {
         if (data) {
           setLateConfig(data);
           try {
-            localStorage.setItem('aula_conductas_late_config_v1', JSON.stringify(data));
+            safeStorage.setItem('aula_conductas_late_config_v1', JSON.stringify(data));
           } catch {}
         }
       })
@@ -299,10 +300,10 @@ export default function App() {
       subscribeToClassConductConfigs((configsMap) => {
         if (configsMap && Object.keys(configsMap).length > 0) {
           try {
-            const raw = localStorage.getItem('aula_conductas_class_configs_v1');
+            const raw = safeStorage.getItem('aula_conductas_class_configs_v1');
             const existing = raw ? JSON.parse(raw) : {};
             const merged = { ...existing, ...configsMap };
-            localStorage.setItem('aula_conductas_class_configs_v1', JSON.stringify(merged));
+            safeStorage.setItem('aula_conductas_class_configs_v1', JSON.stringify(merged));
           } catch {}
         }
       })
@@ -411,11 +412,32 @@ export default function App() {
     showToast(`Acceso concedido a la app de: ${className}`);
   };
 
-  // Handle returning to class selection screen
+  // Handle returning to class selection screen or directivo panel
   const handleChangeClass = () => {
     setActiveClass(null);
     saveStoredActiveClass(null);
-    showToast('Has regresado al portal inicial de aulas.');
+    if (currentUser.role === 'Directivo') {
+      setIsDirectivoMode(true);
+      showToast('Has regresado al panel de Dirección.');
+    } else {
+      showToast('Has regresado al portal inicial de aulas.');
+    }
+  };
+
+  // Directivo access to Estado y Convivencia General del Aula
+  const handleOpenClassFromDirectivo = (className: string) => {
+    setActiveClass(className);
+    saveStoredActiveClass(className);
+    setActiveTab('resumen'); // Opens 'Estado y Convivencia General del Aula'
+    setIsDirectivoMode(false);
+    showToast(`Accediendo a ${className}: Estado y Convivencia General`);
+  };
+
+  const handleBackToDirectivo = () => {
+    setActiveClass(null);
+    saveStoredActiveClass(null);
+    setIsDirectivoMode(true);
+    showToast('Regresando al panel general de Dirección');
   };
 
   // Add new class
@@ -556,12 +578,12 @@ export default function App() {
 
     // Remove from deleted set if re-adding
     try {
-      const rawDeleted = localStorage.getItem('aula_conductas_deleted_students_v1');
+      const rawDeleted = safeStorage.getItem('aula_conductas_deleted_students_v1');
       if (rawDeleted) {
         const deletedList: string[] = JSON.parse(rawDeleted);
         const nameClassKey = `${studentData.className.toLowerCase()}__${studentData.name.trim().toLowerCase()}`;
         const filtered = deletedList.filter((k) => k !== newSt.id && k !== nameClassKey);
-        localStorage.setItem('aula_conductas_deleted_students_v1', JSON.stringify(filtered));
+        safeStorage.setItem('aula_conductas_deleted_students_v1', JSON.stringify(filtered));
       }
     } catch {}
 
@@ -614,7 +636,7 @@ export default function App() {
 
     // Track deleted student so real-time sync or fallback does not restore it
     try {
-      const rawDeleted = localStorage.getItem('aula_conductas_deleted_students_v1');
+      const rawDeleted = safeStorage.getItem('aula_conductas_deleted_students_v1');
       const deletedList: string[] = rawDeleted ? JSON.parse(rawDeleted) : [];
       if (!deletedList.includes(studentId)) {
         deletedList.push(studentId);
@@ -625,7 +647,7 @@ export default function App() {
           deletedList.push(key);
         }
       }
-      localStorage.setItem('aula_conductas_deleted_students_v1', JSON.stringify(deletedList));
+      safeStorage.setItem('aula_conductas_deleted_students_v1', JSON.stringify(deletedList));
     } catch {}
 
     deleteStudentFromFirebase(studentId).catch((err) => console.log('Firebase delete student notice:', err));
@@ -1225,6 +1247,7 @@ export default function App() {
           onOpenLateConfig={() => setIsLateConfigModalOpen(true)}
           onOpenChangePassword={() => setIsChangePasswordModalOpen(true)}
           onExportExcel={handleExportExcel}
+          onOpenClassApp={handleOpenClassFromDirectivo}
           onExitDirectivo={() => {
             setIsDirectivoMode(false);
             if (currentUser.role === 'Directivo') {
@@ -1257,6 +1280,7 @@ export default function App() {
               onOpenCreateClass={() => setIsCreateClassOpen(true)}
               onToggleHideClass={handleToggleHideClass}
               onEditClass={(cls) => setEditingClass(cls)}
+              onOpenClassApp={handleOpenClassFromDirectivo}
               onOpenNewIncidentForClass={(className) => {
                 setPrefilledStudentName(undefined);
                 setIsNewIncidentOpen(true);
@@ -1535,6 +1559,7 @@ export default function App() {
         activeClassName={activeClass}
         onChangeClass={handleChangeClass}
         onOpenDirectivoAccess={handleOpenDirectivoAccess}
+        onBackToDirectivo={handleBackToDirectivo}
         onOpenChangePassword={() => setIsChangePasswordModalOpen(true)}
         onOpenBehaviorTypes={() => setIsBehaviorTypesModalOpen(true)}
         unreadPartesCount={unconfirmedTutorPartes.length}
@@ -1602,6 +1627,7 @@ export default function App() {
             onUpdateBehaviorType={handleUpdateBehaviorType}
             onDeleteBehaviorType={handleDeleteBehaviorType}
             onChangeClass={handleChangeClass}
+            onBackToDirectivo={handleBackToDirectivo}
             onSelectIncident={(inc) => setSelectedIncident(inc)}
             onOpenStudentProfile={(name) => setSelectedStudentName(name)}
             onOpenNewIncident={(name) => handleOpenNewIncidentForStudent(name)}

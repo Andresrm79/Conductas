@@ -19,6 +19,7 @@ import {
   TrendingDown,
   TrendingUp,
   Activity,
+  DoorOpen,
 } from 'lucide-react';
 import {
   Incident,
@@ -55,6 +56,7 @@ interface ClassroomConductTrackingProps {
   onOpenCreateClass?: () => void;
   onToggleHideClass?: (classId: string) => void;
   onEditClass?: (cls: SchoolClass) => void;
+  onOpenClassApp?: (className: string) => void;
 }
 
 interface ClassConductSummary {
@@ -228,6 +230,7 @@ export const ClassroomConductTracking: React.FC<ClassroomConductTrackingProps> =
   onOpenCreateClass,
   onToggleHideClass,
   onEditClass,
+  onOpenClassApp,
 }) => {
   const handleOpenNewLate = onOpenNewLateArrivalForClass || onOpenNewLateForClass || (() => {});
   const [searchTerm, setSearchTerm] = useState('');
@@ -634,7 +637,7 @@ export const ClassroomConductTracking: React.FC<ClassroomConductTrackingProps> =
               </p>
             </div>
 
-            {/* Quick KPIs for this Classroom */}
+            {/* Quick KPIs for this Classroom + Access Button */}
             <div className="flex flex-wrap items-center gap-3">
               <div className="bg-white/10 backdrop-blur-xs px-3.5 py-2 rounded-2xl border border-white/10 text-center min-w-[90px]">
                 <span className="text-[11px] text-amber-300 font-bold block">Retrasos</span>
@@ -649,6 +652,20 @@ export const ClassroomConductTracking: React.FC<ClassroomConductTrackingProps> =
                 <span className="text-xl font-black text-white">{currentStat.ratioPositiva}%</span>
                 <span className="text-[10px] text-slate-300 block">refuerzo pos.</span>
               </div>
+
+              {onOpenClassApp && (
+                <button
+                  type="button"
+                  id={`btn-hero-acceder-aula-${currentStat.className}`}
+                  onClick={() => onOpenClassApp(currentStat.className)}
+                  className="px-4 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs sm:text-sm rounded-2xl transition-all shadow-md flex items-center gap-2 cursor-pointer active:scale-95 hover:shadow-lg shrink-0 ml-auto md:ml-0"
+                  title={`Acceder directamente al Estado y Convivencia General del Aula ${currentStat.className}`}
+                >
+                  <Activity className="w-4 h-4 text-slate-950" />
+                  <span>Acceder al Estado y Convivencia del Aula</span>
+                  <ChevronRight className="w-4 h-4 text-slate-950" />
+                </button>
+              )}
             </div>
           </div>
 
@@ -669,16 +686,30 @@ export const ClassroomConductTracking: React.FC<ClassroomConductTrackingProps> =
 
           {/* Recuadros Estado y Convivencia General del Aula */}
           <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-2xs space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <Activity className="w-4 h-4 text-purple-600" />
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">
                   Estado y Convivencia General del Aula: {currentStat.className}
                 </h4>
               </div>
-              <span className="text-[11px] font-semibold text-slate-500">
-                Semana Activa
-              </span>
+              <div className="flex items-center gap-2 flex-wrap">
+                {onOpenClassApp && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenClassApp(currentStat.className)}
+                    className="px-3.5 py-1.5 bg-purple-700 hover:bg-purple-800 text-white text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs active:scale-95"
+                    title={`Abrir gestión completa y convivencia en vivo de ${currentStat.className}`}
+                  >
+                    <DoorOpen className="w-3.5 h-3.5 text-amber-300" />
+                    <span>Abrir Aula (Convivencia Completa)</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
+                  Semana Activa
+                </span>
+              </div>
             </div>
             <ClassroomConvivenciaBoxes stat={currentStat} compact={false} />
           </div>
@@ -1030,10 +1061,25 @@ export const ClassroomConductTracking: React.FC<ClassroomConductTrackingProps> =
                           </button>
                         )}
 
+                        {onOpenClassApp && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onOpenClassApp(stat.className);
+                            }}
+                            className="px-3.5 py-1.5 bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-800 hover:to-indigo-800 text-white text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs active:scale-95"
+                            title={`Acceder al Estado y Convivencia General del Aula ${stat.className}`}
+                          >
+                            <Activity className="w-3.5 h-3.5 text-amber-300" />
+                            <span>Acceder a Convivencia</span>
+                          </button>
+                        )}
+
                         <button
                           type="button"
                           onClick={() => onSelectClassFilter(stat.className)}
-                          className="px-3.5 py-1.5 bg-slate-900 hover:bg-purple-900 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                          className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
                         >
                           <span>Ver Expediente y Alumnado</span>
                           <ChevronRight className="w-3.5 h-3.5" />

@@ -43,6 +43,41 @@ const LATE_CONFIG_KEY = 'aula_conductas_late_config_v1';
 const PROFILES_KEY = 'aula_conductas_profiles_v2';
 const TUTOR_CONFIRMATIONS_KEY = 'aula_conductas_tutor_confirmations_v1';
 
+const memoryStorage = new Map<string, string>();
+
+export const safeStorage = {
+  getItem: (key: string): string | null => {
+    try {
+      if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
+        return window.localStorage.getItem(key);
+      }
+    } catch {
+      // ignore
+    }
+    return memoryStorage.get(key) ?? null;
+  },
+  setItem: (key: string, value: string): void => {
+    try {
+      if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
+        window.localStorage.setItem(key, value);
+      }
+    } catch {
+      // ignore
+    }
+    memoryStorage.set(key, value);
+  },
+  removeItem: (key: string): void => {
+    try {
+      if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
+        window.localStorage.removeItem(key);
+      }
+    } catch {
+      // ignore
+    }
+    memoryStorage.delete(key);
+  },
+};
+
 export const DEFAULT_CONDUCT_THRESHOLDS: ConductThresholds = {
   favorableThreshold: -10,  // Puntos semanales > -10 => Favorable (Verde)
   criticoThreshold: -20,    // Puntos semanales entre -10 y -20 => Crítico (Amarillo)
@@ -52,7 +87,7 @@ export const DEFAULT_CONDUCT_THRESHOLDS: ConductThresholds = {
 // Behavior Types Catalog Storage
 export function getStoredBehaviorTypes(): BehaviorType[] {
   try {
-    const raw = localStorage.getItem(BEHAVIOR_TYPES_KEY);
+    const raw = safeStorage.getItem(BEHAVIOR_TYPES_KEY);
     if (!raw) {
       const sanitized = INITIAL_BEHAVIOR_TYPES.map((b) => ({ ...b, active: b.active !== false }));
       saveStoredBehaviorTypes(sanitized);
@@ -61,19 +96,19 @@ export function getStoredBehaviorTypes(): BehaviorType[] {
     const parsed: BehaviorType[] = JSON.parse(raw);
     return parsed.map((b) => ({ ...b, active: b.active !== false }));
   } catch (e) {
-    console.error('Error reading behavior types from localStorage', e);
+    console.error('Error reading behavior types from storage', e);
     return INITIAL_BEHAVIOR_TYPES.map((b) => ({ ...b, active: b.active !== false }));
   }
 }
 
 export function saveStoredBehaviorTypes(types: BehaviorType[]): void {
   try {
-    localStorage.setItem(BEHAVIOR_TYPES_KEY, JSON.stringify(types));
+    safeStorage.setItem(BEHAVIOR_TYPES_KEY, JSON.stringify(types));
     types.forEach((t) => {
       saveBehaviorTypeToFirebase(t).catch((err) => console.log('Firebase sync notice:', err));
     });
   } catch (e) {
-    console.error('Error saving behavior types to localStorage', e);
+    console.error('Error saving behavior types to storage', e);
   }
 }
 
@@ -119,7 +154,7 @@ export function updateBehaviorTypeEverywhere(updatedType: BehaviorType): void {
 
   // 2. Update across all class conduct configs
   try {
-    const raw = localStorage.getItem(CLASS_CONDUCT_CONFIGS_KEY);
+    const raw = safeStorage.getItem(CLASS_CONDUCT_CONFIGS_KEY);
     if (raw) {
       const configs: Record<string, ClassConductConfig> = JSON.parse(raw);
       let anyModified = false;
@@ -157,7 +192,7 @@ export function updateBehaviorTypeEverywhere(updatedType: BehaviorType): void {
       });
 
       if (anyModified) {
-        localStorage.setItem(CLASS_CONDUCT_CONFIGS_KEY, JSON.stringify(configs));
+        safeStorage.setItem(CLASS_CONDUCT_CONFIGS_KEY, JSON.stringify(configs));
       }
     }
   } catch (e) {
@@ -168,7 +203,7 @@ export function updateBehaviorTypeEverywhere(updatedType: BehaviorType): void {
 // PER-CLASS CONDUCT CATALOG AND STATUS THRESHOLDS
 export function getClassConductConfig(className: string): ClassConductConfig {
   try {
-    const raw = localStorage.getItem(CLASS_CONDUCT_CONFIGS_KEY);
+    const raw = safeStorage.getItem(CLASS_CONDUCT_CONFIGS_KEY);
     const configs: Record<string, ClassConductConfig> = raw ? JSON.parse(raw) : {};
     if (configs[className]) {
       const stored = configs[className];
@@ -205,7 +240,7 @@ export function getClassConductConfig(className: string): ClassConductConfig {
 
 export function saveClassConductConfig(config: ClassConductConfig): void {
   try {
-    const raw = localStorage.getItem(CLASS_CONDUCT_CONFIGS_KEY);
+    const raw = safeStorage.getItem(CLASS_CONDUCT_CONFIGS_KEY);
     const configs: Record<string, ClassConductConfig> = raw ? JSON.parse(raw) : {};
     const updated = {
       ...config,
@@ -213,7 +248,7 @@ export function saveClassConductConfig(config: ClassConductConfig): void {
       updatedAt: new Date().toISOString(),
     };
     configs[config.className] = updated;
-    localStorage.setItem(CLASS_CONDUCT_CONFIGS_KEY, JSON.stringify(configs));
+    safeStorage.setItem(CLASS_CONDUCT_CONFIGS_KEY, JSON.stringify(configs));
     saveClassConductConfigToFirebase(updated).catch((err) => console.log('Firebase sync notice:', err));
   } catch (e) {
     console.error('Error saving class conduct config', e);
@@ -222,11 +257,11 @@ export function saveClassConductConfig(config: ClassConductConfig): void {
 
 export function resetClassConductConfigToDefault(className: string): ClassConductConfig {
   try {
-    const raw = localStorage.getItem(CLASS_CONDUCT_CONFIGS_KEY);
+    const raw = safeStorage.getItem(CLASS_CONDUCT_CONFIGS_KEY);
     if (raw) {
       const configs: Record<string, ClassConductConfig> = JSON.parse(raw);
       delete configs[className];
-      localStorage.setItem(CLASS_CONDUCT_CONFIGS_KEY, JSON.stringify(configs));
+      safeStorage.setItem(CLASS_CONDUCT_CONFIGS_KEY, JSON.stringify(configs));
     }
     deleteClassConductConfigFromFirebase(className).catch((err) =>
       console.log('Firebase delete class config notice:', err)
@@ -239,7 +274,7 @@ export function resetClassConductConfigToDefault(className: string): ClassConduc
 
 export function applyClassConfigToAllClasses(sourceConfig: ClassConductConfig, allClassNames: string[]): void {
   try {
-    const raw = localStorage.getItem(CLASS_CONDUCT_CONFIGS_KEY);
+    const raw = safeStorage.getItem(CLASS_CONDUCT_CONFIGS_KEY);
     const configs: Record<string, ClassConductConfig> = raw ? JSON.parse(raw) : {};
     allClassNames.forEach((name) => {
       const classCfg: ClassConductConfig = {
@@ -255,7 +290,7 @@ export function applyClassConfigToAllClasses(sourceConfig: ClassConductConfig, a
         console.warn(`Error saving config for ${name} to Firebase:`, err)
       );
     });
-    localStorage.setItem(CLASS_CONDUCT_CONFIGS_KEY, JSON.stringify(configs));
+    safeStorage.setItem(CLASS_CONDUCT_CONFIGS_KEY, JSON.stringify(configs));
 
     // Also update center catalog with these behavior types and points
     saveStoredBehaviorTypes(sourceConfig.behaviorTypes);
@@ -470,77 +505,77 @@ export function getStudentLastConduct(
 
 export function getStoredStudents(): ClassStudent[] {
   try {
-    const raw = localStorage.getItem(STUDENTS_KEY);
+    const raw = safeStorage.getItem(STUDENTS_KEY);
     if (!raw) {
       return INITIAL_STUDENTS;
     }
     return JSON.parse(raw);
   } catch (e) {
-    console.error('Error reading students from localStorage', e);
+    console.error('Error reading students from storage', e);
     return INITIAL_STUDENTS;
   }
 }
 
 export function saveStoredStudents(students: ClassStudent[]): void {
   try {
-    localStorage.setItem(STUDENTS_KEY, JSON.stringify(students));
+    safeStorage.setItem(STUDENTS_KEY, JSON.stringify(students));
     students.forEach((st) => {
       saveStudentToFirebase(st).catch((err) => console.log('Firebase sync notice:', err));
     });
   } catch (e) {
-    console.error('Error saving students to localStorage', e);
+    console.error('Error saving students to storage', e);
   }
 }
 
 export function getStoredPositives(): PositiveBehavior[] {
   try {
-    const raw = localStorage.getItem(POSITIVES_KEY);
+    const raw = safeStorage.getItem(POSITIVES_KEY);
     if (!raw) {
       return INITIAL_POSITIVES;
     }
     return JSON.parse(raw);
   } catch (e) {
-    console.error('Error reading positives from localStorage', e);
+    console.error('Error reading positives from storage', e);
     return INITIAL_POSITIVES;
   }
 }
 
 export function saveStoredPositives(positives: PositiveBehavior[]): void {
   try {
-    localStorage.setItem(POSITIVES_KEY, JSON.stringify(positives));
+    safeStorage.setItem(POSITIVES_KEY, JSON.stringify(positives));
   } catch (e) {
-    console.error('Error saving positives to localStorage', e);
+    console.error('Error saving positives to storage', e);
   }
 }
 
 
 export function getStoredClasses(): SchoolClass[] {
   try {
-    const raw = localStorage.getItem(CLASSES_KEY);
+    const raw = safeStorage.getItem(CLASSES_KEY);
     if (!raw) {
       return INITIAL_CLASSES;
     }
     return JSON.parse(raw);
   } catch (e) {
-    console.error('Error reading classes from localStorage', e);
+    console.error('Error reading classes from storage', e);
     return INITIAL_CLASSES;
   }
 }
 
 export function saveStoredClasses(classes: SchoolClass[]): void {
   try {
-    localStorage.setItem(CLASSES_KEY, JSON.stringify(classes));
+    safeStorage.setItem(CLASSES_KEY, JSON.stringify(classes));
     classes.forEach((c) => {
       saveClassToFirebase(c).catch((err) => console.log('Firebase sync notice:', err));
     });
   } catch (e) {
-    console.error('Error saving classes to localStorage', e);
+    console.error('Error saving classes to storage', e);
   }
 }
 
 export function getStoredActiveClass(): string | null {
   try {
-    return localStorage.getItem(ACTIVE_CLASS_KEY);
+    return safeStorage.getItem(ACTIVE_CLASS_KEY);
   } catch {
     return null;
   }
@@ -549,9 +584,9 @@ export function getStoredActiveClass(): string | null {
 export function saveStoredActiveClass(className: string | null): void {
   try {
     if (className) {
-      localStorage.setItem(ACTIVE_CLASS_KEY, className);
+      safeStorage.setItem(ACTIVE_CLASS_KEY, className);
     } else {
-      localStorage.removeItem(ACTIVE_CLASS_KEY);
+      safeStorage.removeItem(ACTIVE_CLASS_KEY);
     }
   } catch (e) {
     console.error('Error saving active class', e);
@@ -560,10 +595,10 @@ export function saveStoredActiveClass(className: string | null): void {
 
 export function getStoredTutorConfirmations(): Record<string, TutorParteConfirmation> {
   try {
-    const raw = localStorage.getItem(TUTOR_CONFIRMATIONS_KEY);
+    const raw = safeStorage.getItem(TUTOR_CONFIRMATIONS_KEY);
     return raw ? JSON.parse(raw) : {};
   } catch (e) {
-    console.error('Error reading tutor confirmations from localStorage', e);
+    console.error('Error reading tutor confirmations from storage', e);
     return {};
   }
 }
@@ -572,15 +607,15 @@ export function saveStoredTutorConfirmation(incidentId: string, confirmation: Tu
   try {
     const current = getStoredTutorConfirmations();
     current[incidentId] = confirmation;
-    localStorage.setItem(TUTOR_CONFIRMATIONS_KEY, JSON.stringify(current));
+    safeStorage.setItem(TUTOR_CONFIRMATIONS_KEY, JSON.stringify(current));
   } catch (e) {
-    console.error('Error saving tutor confirmation to localStorage', e);
+    console.error('Error saving tutor confirmation to storage', e);
   }
 }
 
 export function getStoredIncidents(): Incident[] {
   try {
-    const raw = localStorage.getItem(INCIDENTS_KEY);
+    const raw = safeStorage.getItem(INCIDENTS_KEY);
     const tutorConfirmations = getStoredTutorConfirmations();
     if (!raw) {
       return INITIAL_INCIDENTS.map((inc) => ({
@@ -594,22 +629,22 @@ export function getStoredIncidents(): Incident[] {
       tutorReadConfirmation: tutorConfirmations[inc.id] || inc.tutorReadConfirmation,
     }));
   } catch (e) {
-    console.error('Error reading incidents from localStorage', e);
+    console.error('Error reading incidents from storage', e);
     return INITIAL_INCIDENTS;
   }
 }
 
 export function saveIncidents(incidents: Incident[]): void {
   try {
-    localStorage.setItem(INCIDENTS_KEY, JSON.stringify(incidents));
+    safeStorage.setItem(INCIDENTS_KEY, JSON.stringify(incidents));
   } catch (e) {
-    console.error('Error saving incidents to localStorage', e);
+    console.error('Error saving incidents to storage', e);
   }
 }
 
 export function getStoredProfiles(): UserProfile[] {
   try {
-    const raw = localStorage.getItem(PROFILES_KEY);
+    const raw = safeStorage.getItem(PROFILES_KEY);
     if (raw) {
       const parsed: UserProfile[] = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
@@ -621,19 +656,19 @@ export function getStoredProfiles(): UserProfile[] {
       }
     }
   } catch (e) {
-    console.error('Error reading profiles from localStorage', e);
+    console.error('Error reading profiles from storage', e);
   }
   return INITIAL_PROFILES;
 }
 
 export function saveStoredProfiles(profiles: UserProfile[]): void {
   try {
-    localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
+    safeStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
     profiles.forEach((p) => {
       saveProfileToFirebase(p).catch((err) => console.log('Firebase sync notice:', err));
     });
   } catch (e) {
-    console.error('Error saving profiles to localStorage', e);
+    console.error('Error saving profiles to storage', e);
   }
 }
 
@@ -646,7 +681,7 @@ export function isUserAuthorizedForClass(user: UserProfile, className: string): 
 
 export function getStoredUser(): UserProfile {
   try {
-    const raw = localStorage.getItem(CURRENT_USER_KEY);
+    const raw = safeStorage.getItem(CURRENT_USER_KEY);
     if (raw) {
       const parsed: UserProfile = JSON.parse(raw);
       // Synchronize with stored profiles if available
@@ -656,7 +691,7 @@ export function getStoredUser(): UserProfile {
       return parsed;
     }
   } catch (e) {
-    console.error('Error reading user from localStorage', e);
+    console.error('Error reading user from storage', e);
   }
   const profiles = getStoredProfiles();
   return profiles[0] || INITIAL_PROFILES[0];
@@ -664,18 +699,18 @@ export function getStoredUser(): UserProfile {
 
 export function saveStoredUser(user: UserProfile): void {
   try {
-    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+    safeStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
   } catch (e) {
-    console.error('Error saving user to localStorage', e);
+    console.error('Error saving user to storage', e);
   }
 }
 
 export function getStoredLateArrivals(): LateArrival[] {
   try {
-    const raw = localStorage.getItem(LATE_ARRIVALS_KEY);
+    const raw = safeStorage.getItem(LATE_ARRIVALS_KEY);
     let deletedSet = new Set<string>();
     try {
-      const rawDeleted = localStorage.getItem('aula_conductas_deleted_students_v1');
+      const rawDeleted = safeStorage.getItem('aula_conductas_deleted_students_v1');
       if (rawDeleted) {
         deletedSet = new Set<string>(JSON.parse(rawDeleted));
       }
@@ -702,41 +737,41 @@ export function getStoredLateArrivals(): LateArrival[] {
       return true;
     });
   } catch (e) {
-    console.error('Error reading late arrivals from localStorage', e);
+    console.error('Error reading late arrivals from storage', e);
     return INITIAL_LATE_ARRIVALS;
   }
 }
 
 export function saveStoredLateArrivals(arrivals: LateArrival[]): void {
   try {
-    localStorage.setItem(LATE_ARRIVALS_KEY, JSON.stringify(arrivals));
+    safeStorage.setItem(LATE_ARRIVALS_KEY, JSON.stringify(arrivals));
     arrivals.forEach((a) => {
       saveLateArrivalToFirebase(a).catch((err) => console.log('Firebase sync notice:', err));
     });
   } catch (e) {
-    console.error('Error saving late arrivals to localStorage', e);
+    console.error('Error saving late arrivals to storage', e);
   }
 }
 
 export function getStoredLateArrivalConfig(): LateArrivalConfig {
   try {
-    const raw = localStorage.getItem(LATE_CONFIG_KEY);
+    const raw = safeStorage.getItem(LATE_CONFIG_KEY);
     if (!raw) {
       return DEFAULT_LATE_CONFIG;
     }
     return JSON.parse(raw);
   } catch (e) {
-    console.error('Error reading late arrival config from localStorage', e);
+    console.error('Error reading late arrival config from storage', e);
     return DEFAULT_LATE_CONFIG;
   }
 }
 
 export function saveStoredLateArrivalConfig(config: LateArrivalConfig): void {
   try {
-    localStorage.setItem(LATE_CONFIG_KEY, JSON.stringify(config));
+    safeStorage.setItem(LATE_CONFIG_KEY, JSON.stringify(config));
     saveCenterLateConfigToFirebase(config).catch((err) => console.log('Firebase sync notice:', err));
   } catch (e) {
-    console.error('Error saving late arrival config to localStorage', e);
+    console.error('Error saving late arrival config to storage', e);
   }
 }
 

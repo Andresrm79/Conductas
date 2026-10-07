@@ -34,6 +34,7 @@ interface HeaderProps {
   activeClassName: string | null;
   onChangeClass: () => void;
   onOpenDirectivoAccess: () => void;
+  onBackToDirectivo?: () => void;
   unreadPartesCount?: number;
   onOpenTutorPartes?: () => void;
   onOpenChangePassword?: () => void;
@@ -54,6 +55,7 @@ export const Header: React.FC<HeaderProps> = ({
   activeClassName,
   onChangeClass,
   onOpenDirectivoAccess,
+  onBackToDirectivo,
   unreadPartesCount,
   onOpenTutorPartes,
   onOpenChangePassword,
@@ -90,6 +92,20 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Active Class Pill & Controls */}
           <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+            {/* Directivo Return Button if currentUser is Directivo */}
+            {currentUser.role === 'Directivo' && onBackToDirectivo && (
+              <button
+                id="btn-header-back-to-directivo"
+                type="button"
+                onClick={onBackToDirectivo}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-purple-700 hover:bg-purple-800 text-white rounded-xl shadow-2xs transition-all cursor-pointer active:scale-95"
+                title="Volver al panel general de Dirección"
+              >
+                <ShieldAlert className="w-4 h-4 text-amber-300" />
+                <span>Panel de Dirección</span>
+              </button>
+            )}
+
             {/* Active Class Badge with Exit/Change button */}
             {activeClassName && (
               <div className="flex items-center gap-2 bg-indigo-50/90 border border-indigo-200 rounded-xl px-2.5 py-1.5 text-xs shadow-2xs">
